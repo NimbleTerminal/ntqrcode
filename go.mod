@@ -10,7 +10,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/NimbleMarkets/go-booba v0.7.0
-	github.com/NimbleMarkets/ntcharts/v2 v2.7.2
+	github.com/NimbleMarkets/ntcharts/v2 v2.8.0
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/makiuchi-d/gozxing v0.1.1
