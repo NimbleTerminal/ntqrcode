@@ -1,5 +1,13 @@
 # `ntqrcode` CHANGELOG
 
+## Unreleased
+
+* Migrate rendering from `github.com/NimbleMarkets/ntcharts/v2/picture` to
+  `nimbleterminal.dev/ntpicture`, retaining its compatible low-level `Model`
+  API and the existing QR public API, pixel geometry, and cleanup behavior.
+* Use a temporary `../ntpicture` module replacement until its public release.
+* Record the migration procedure and verification in DEVELOP.md.
+
 ## v0.2.0 (2026-10-09)
 
 * **Breaking:** move the module from `github.com/NimbleMarkets/ntcharts-qrcode`

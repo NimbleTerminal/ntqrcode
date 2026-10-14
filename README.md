@@ -108,7 +108,7 @@ cmd := tea.Batch(
 [complete host example](./examples/qrcode/main.go) for batching, native/WASM
 startup, and cleanup before quitting.
 
-- Use an existing `picture.Model.Init()`/`Update()` for asynchronous terminal
+- Use an existing `ntpicture.Model.Init()`/`Update()` for asynchronous terminal
   detection. Forward its `CellPixelSize()` and the user's graphics preference
   through `SetTerminal`. Unknown or unsupported Kitty capability uses glyphs.
 - Broadcast messages to all components. Each filters its own image frames.
@@ -166,7 +166,13 @@ The browser demo runs the same example through [go-booba](https://github.com/Nim
 native builds use upstream versions.
 
 Encoding uses [piglig/go-qr v2.6.0](https://github.com/piglig/go-qr/releases/tag/v2.6.0).
-Rendering uses NTCharts v2.7.2. Tests independently decode generated images,
+Rendering uses [ntpicture](https://github.com/NimbleTerminal/ntpicture).
+The [migration guide](./DEVELOP.md#migrating-from-ntchartspicture-to-ntpicture)
+records the dependency and API changes. During pre-release development, builds
+require a sibling `../ntpicture` checkout via a temporary module replacement;
+see the [local verification steps](./DEVELOP.md#pre-release-dependency-and-verification).
+
+Tests independently decode generated images,
 Kitty PNG data, and reconstructed glyph output. They also cover Unicode,
 capacity limits, resizing, and cleanup. Camera and terminal checks are recorded
 separately in [DEVELOP.md](./DEVELOP.md).

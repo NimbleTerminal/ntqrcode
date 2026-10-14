@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/NimbleMarkets/ntcharts/v2/picture"
 	"github.com/charmbracelet/x/ansi/kitty"
+	picture "nimbleterminal.dev/ntpicture"
 )
 
 // Run the example's real host routing with asynchronous frames and capture

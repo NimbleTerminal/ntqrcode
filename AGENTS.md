@@ -24,9 +24,9 @@ may approximate the cell geometry within the documented 9/8 side ratio.
 Preserve allocation and input bounds. Sixel, logos, styling, and product
 decoding are out of scope. The decoder dependency is for tests only.
 
-NTCharts picture's exact-size `FitFill` path must bypass resampling. Keep the
+ntpicture's exact-size `FitFill` path must bypass resampling. Keep the
 tests that decode actual Kitty PNG bytes and reconstructed glyph output;
-they protect this dependency contract when upgrading NTCharts.
+they protect this dependency contract when upgrading ntpicture.
 
 ## Verification
 

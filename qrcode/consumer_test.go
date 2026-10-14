@@ -40,6 +40,15 @@ func main() {
 }
 `,
 	}
+	// Explicit opt-in for pre-release sibling development only. Without this
+	// environment variable, keep verifying normal downstream resolution.
+	if local := os.Getenv("NTQRCODE_TEST_NTPICTURE"); local != "" {
+		local, err = filepath.Abs(local)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files["go.mod"] += "\nreplace nimbleterminal.dev/ntpicture => " + strconv.Quote(local) + "\n"
+	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 			t.Fatal(err)

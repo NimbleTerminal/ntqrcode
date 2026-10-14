@@ -53,9 +53,9 @@ colors in every cell and no `▀`, and decode the physical result.
 
 For Kitty, the component builds an opaque bitmap with square, integer-sized
 modules (up to eight pixels each), padded white to exactly fill its cell
-rectangle. NTCharts v2.7.2 normally uses Catmull–Rom resizing; its `FitFill`
-fast path bypasses this only with exact source/target sizes and transparent
-configured background. The QR source itself remains opaque. Resolution stays
+rectangle. ntpicture normally uses Catmull–Rom resizing; its exact-size `FitFill`
+path bypasses resampling. We retain a transparent configured background and
+an exact source/target size. The QR source itself remains opaque. Resolution stays
 1.0. Tests inspect and independently decode the transmitted PNG, guarding this
 dependency behavior. Until the frame is transmitted, the component shows a
 preparation message instead of picture's resampled transitional glyph view.
@@ -181,3 +181,108 @@ Results, 2026-10-06 (Evan Wies; detail recorded only as reported):
 - Not recorded: the Kitty terminal's identity, fonts, exact cell geometry, and
   the decoded URLs. WezTerm and other glyph terminals were not tried. Add
   those details here if they are re-run.
+
+## Migrating from NTCharts/picture to ntpicture
+
+This migration uses ntpicture's compatible low-level `Model`. The QR component
+already owns rasterization, fit validation, replacement, and cleanup, so it does
+not need to adopt the higher-level `Picture` lifecycle to change dependencies.
+The exported `qrcode` API stays unchanged.
+
+1. Inventory production, demo, and test imports. Replace
+   `"github.com/NimbleMarkets/ntcharts/v2/picture"` with
+   `picture "nimbleterminal.dev/ntpicture"`. The alias keeps existing call sites
+   readable; the new package's declared name is `ntpicture`.
+2. Rename `picture.NewWithConfig` to `picture.NewModelWithConfig`.
+   For consumers using the default constructor, `picture.New` becomes
+   `picture.NewModel`. The new `ntpicture.New` constructs a different,
+   lifecycle-owning `Picture`; it is not the compatibility constructor.
+3. Retain `Model`, `Config`, `KittyFrameMsg`, capability helpers, and the
+   host-owned allocator. Keep asynchronous detection in the host and route
+   frame messages to each QR component. Run all returned commands, including
+   `Toggle`, replacement cleanup, and `Close`. Do not add synchronous probes.
+4. Preserve the QR rendering contract: opaque black/white modules, four-module
+   quiet zone, exact target-sized white padding, `FitFill`, transparent render
+   background, and resolution factor 1. Keep direct module-to-glyph output and
+   the preparation message; never show the renderer's transitional glyph view.
+   Retain the accepted-frame cleanup guard and immediate retirement on invalid
+   fit, replacement, resize, and removal.
+5. Replace the module dependency, tidy, and regenerate dependency notices.
+   Use a published tag or pseudo-version for a distributable library. A local
+   `replace` is only a development bridge: Go ignores a dependency's replacement
+   directives in downstream main modules. Do not weaken `TestDownstreamConsumer`
+   to conceal an unpublished dependency. Native and WASM must resolve the same
+   ntpicture revision; keep the existing WASM-only Bubble Tea/clipboard forks.
+6. Run `task test`, `task build-ex-qrcode`, then `task ci`. Preserve the tests
+   that independently decode actual Kitty PNG bytes and reconstructed glyphs,
+   plus resize, capability, multi-component, and cleanup regressions. Regenerate
+   notices with `task notices` before the CI notices check. Review the diff for
+   stale imports, local replacements, and accidental dependency upgrades.
+
+Adopting `Picture` or explicit `TerminalSession` is a separate lifecycle change.
+`Picture` defaults to retaining the previous image while preparing a replacement;
+QR needs `ClearOnReplace` and its own glyph policy. Its allocator also returns
+`(int, error)`, while QR's existing `Config.NextID` returns `int`. Do not silently
+change those contracts during an import migration.
+
+Automated decoding and builds do not establish phone scanning or visual parity.
+Native terminals, fonts, tmux, browser renderers, and camera scans still require
+manual acceptance and a recorded result.
+
+### Pre-release dependency and verification
+
+The initial migration uses `nimbleterminal.dev/ntpicture v0.0.0` with
+`replace nimbleterminal.dev/ntpicture => ../ntpicture`, as requested while the
+sibling API is being finalized. This requires the sibling checkout for both
+native and WASM builds and is not yet a distributable dependency pin. The
+inspected sibling HEAD was `204e10268ffe4ee1785a606423a66df27483beb5`; the
+replacement uses the working tree, including any subsequent local edits.
+
+The downstream smoke test defaults to normal published dependency resolution.
+For pre-release validation only, explicitly give its temporary main module the
+same sibling path:
+
+```sh
+export NTQRCODE_TEST_NTPICTURE="$(cd ../ntpicture && pwd)"
+task notices
+task test
+task --force build-ex-qrcode
+task ci
+```
+
+Force the native example rebuild after sibling changes: Task tracks this
+repository's sources, but not files in the replaced module.
+
+This verifies a consumer with an explicit local dependency; it does not prove
+that a remote consumer can fetch ntpicture. CI without the override will retain
+that release-readiness check and cannot pass until the dependency is published.
+
+Once ntpicture is released, remove the replacement and placeholder requirement,
+then install the actual release (substitute its tag for `vX.Y.Z`):
+
+```sh
+go mod edit -dropreplace=nimbleterminal.dev/ntpicture
+go get nimbleterminal.dev/ntpicture@vX.Y.Z
+go mod tidy
+unset NTQRCODE_TEST_NTPICTURE
+task notices
+task ci
+```
+
+Commit the new go.mod/go.sum and generated notices together. Run the consumer
+test without the override before calling the migration release-ready.
+
+Migration verification: `task test`, `task build-ex-qrcode`, and the full
+`task ci` gate passed with the explicit local consumer override above. This
+includes race tests, vet, module tidy/verification, Windows/native/WASM builds,
+generated notices, and native/WASM vulnerability scans (no vulnerabilities
+reported). The decoding tests exercised actual Kitty PNG payloads and
+reconstructed glyph output. No new terminal, browser visual, or camera checks
+were performed for this migration.
+
+Revalidated against sibling HEAD `b12e0a8` and its current working tree after
+the raster geometry, bounded cover/glyph allocation, and playback recovery
+updates: the full CI gate passed with the local consumer override, and the
+native demo was force-rebuilt to include sibling changes. Both vulnerability
+scans again reported no vulnerabilities. The compatibility migration needed no
+additional QR source changes.

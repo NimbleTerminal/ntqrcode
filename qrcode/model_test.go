@@ -14,12 +14,12 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/NimbleMarkets/ntcharts/v2/picture"
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/ansi/kitty"
 	"github.com/makiuchi-d/gozxing"
 	decoder "github.com/makiuchi-d/gozxing/qrcode"
+	picture "nimbleterminal.dev/ntpicture"
 )
 
 func component(t *testing.T, text string, next func() int) *Model {

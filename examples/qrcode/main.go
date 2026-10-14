@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	booba "github.com/NimbleMarkets/go-booba"
-	"github.com/NimbleMarkets/ntcharts/v2/picture"
 	"github.com/charmbracelet/x/ansi"
+	picture "nimbleterminal.dev/ntpicture"
 	"nimbleterminal.dev/ntqrcode/qrcode"
 )
 
@@ -35,7 +35,7 @@ type model struct {
 }
 
 func newModel() *model {
-	m := &model{terminal: picture.NewWithConfig(picture.Config{KittyID: 1}), preferKitty: true, solid: solidCells()}
+	m := &model{terminal: picture.NewModelWithConfig(picture.Config{KittyID: 1}), preferKitty: true, solid: solidCells()}
 	m.codes[0], m.codes[1] = m.newQR(addresses[0]), m.newQR(addresses[1])
 	return m
 }

@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/NimbleMarkets/ntcharts/v2/picture"
 	uv "github.com/charmbracelet/ultraviolet"
+	picture "nimbleterminal.dev/ntpicture"
 )
 
 var ErrDoesNotFit = errors.New("QR code doesn't fit")
@@ -76,7 +76,7 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 }
 
 // SetTerminal consumes the host's graphics choice and cell pixel dimensions.
-// Kitty also requires NTCharts' existing process-wide affirmative detection.
+// Kitty also requires ntpicture's process-wide affirmative detection.
 // Unknown/unsupported capability falls back to glyphs; this never probes.
 // The default geometry is 8x16 until the host supplies its measured size.
 // Glyphs repeat whole columns and half-rows to approximate square modules
@@ -148,7 +148,7 @@ func (m *Model) View() string {
 	return m.glyph
 }
 
-// Close clears pending frames and returns NTCharts' ID-specific delete
+// Close clears pending frames and returns ntpicture's ID-specific delete
 // command (including its tmux handling). It is idempotent.
 func (m *Model) Close() tea.Cmd {
 	m.closed, m.glyph = true, ""
@@ -210,7 +210,7 @@ func (m *Model) layout() tea.Cmd {
 	side := n * scale
 	cols, rows = (side+m.cw-1)/m.cw, (side+m.ch-1)/m.ch
 	// FitFill + transparent Background + EXACT target-sized source bypasses
-	// picture.fillTo's CatmullRom scaler in NTCharts v2.4.0. The source itself
+	// ntpicture's CatmullRom scaler. The source itself
 	// is opaque white. ResolutionFactor must stay 1. Decoder tests inspect
 	// the actual transmitted PNG, not only this source image.
 	out := image.NewRGBA(image.Rect(0, 0, cols*m.cw, rows*m.ch))
@@ -222,14 +222,14 @@ func (m *Model) layout() tea.Cmd {
 		return cleanup
 	}
 	m.id = id
-	p := picture.NewWithConfig(picture.Config{KittyID: id, KittyZ: -1, Fit: picture.FitFill,
+	p := picture.NewModelWithConfig(picture.Config{KittyID: id, KittyZ: -1, Fit: picture.FitFill,
 		CellPixelWidth: m.cw, CellPixelHeight: m.ch, KittyResolutionFactor: 1})
 	m.pic = &p
 	m.flight = &placement{}
 	m.flight.active.Store(true)
-	p.SetSize(cols, rows)
-	p.Toggle()
-	return tea.Sequence(cleanup, p.SetImage(out))
+	size := p.SetSize(cols, rows)
+	toggle := p.Toggle()
+	return tea.Sequence(cleanup, size, toggle, p.SetImage(out))
 }
 
 type readyMsg struct {
