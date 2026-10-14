@@ -3,8 +3,16 @@
 ## Unreleased
 
 * Migrate rendering from `github.com/NimbleMarkets/ntcharts/v2/picture` to
-  `nimbleterminal.dev/ntpicture`, retaining its compatible low-level `Model`
-  API and the existing QR public API, pixel geometry, and cleanup behavior.
+  `nimbleterminal.dev/ntpicture.Picture`, delegating preparation, cancellation,
+  presentation, and cleanup while preserving exact QR pixels and custom glyphs.
+  Use `HostGeometry` and atomic `Submit` with exact, immutable rasters to prevent
+  terminal events or intermediate geometry changes from resampling old pixels.
+* Add optional `Config.Session` for host-owned terminal transport; the terminal example
+  uses an explicit `TerminalSession` instance and closes it after QR cleanup.
+* **Behavior change:** `SetTerminal` now trusts the host's confirmed Kitty choice
+  instead of requiring process-global detection. Hosts must combine their
+  graphics preference with affirmative capability detection. The `NextID`
+  callback signature remains unchanged; rendering/allocation errors reach `Err`.
 * Use a temporary `../ntpicture` module replacement until its public release.
 * Record the migration procedure and verification in DEVELOP.md.
 

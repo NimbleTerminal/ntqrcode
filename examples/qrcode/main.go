@@ -15,7 +15,7 @@ import (
 )
 
 var addresses = []string{
-	"https://nimble.markets/",
+	"https://nimbleterminal.com/",
 	"https://github.com/NimbleTerminal/ntqrcode",
 	"https://example.org/東京?q=☕",
 }
@@ -28,21 +28,25 @@ func solidCells() bool {
 }
 
 type model struct {
-	terminal                    picture.Model
+	terminal                    *picture.TerminalSession
 	codes                       [2]*qrcode.Model
 	width, height, id, selected int
 	preferKitty, solid          bool
 }
 
 func newModel() *model {
-	m := &model{terminal: picture.NewModelWithConfig(picture.Config{KittyID: 1}), preferKitty: true, solid: solidCells()}
+	return newModelWithSession(picture.NewTerminalSession(picture.TerminalOptions{}))
+}
+
+func newModelWithSession(session *picture.TerminalSession) *model {
+	m := &model{terminal: session, preferKitty: true, solid: solidCells()}
 	m.codes[0], m.codes[1] = m.newQR(addresses[0]), m.newQR(addresses[1])
 	return m
 }
 
 func (m *model) nextID() int {
 	m.id++
-	return 100 + m.id*1000 // shared across components, separate from the host picture
+	return 100 + m.id // one shared allocator for both QR components
 }
 
 func (m *model) newQR(text string) *qrcode.Model {
@@ -50,7 +54,7 @@ func (m *model) newQR(text string) *qrcode.Model {
 	if err != nil {
 		panic(err)
 	} // fixed example payloads
-	qr, err := qrcode.New(code, qrcode.Config{NextID: m.nextID, SolidCells: m.solid})
+	qr, err := qrcode.New(code, qrcode.Config{Session: m.terminal, NextID: m.nextID, SolidCells: m.solid})
 	if err != nil {
 		panic(err)
 	}
@@ -80,7 +84,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmds = append(cmds, qr.Close())
 				}
 			}
-			return m, tea.Sequence(tea.Batch(cmds...), tea.Quit)
+			return m, tea.Sequence(tea.Batch(cmds...), func() tea.Msg { m.terminal.Close(); return tea.Quit() })
 		case "g":
 			m.preferKitty = !m.preferKitty
 		case "n", "space":
@@ -96,12 +100,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	cw, ch := m.terminal.CellPixelSize()
+	state := m.terminal.Snapshot()
+	cw, ch := state.CellPixelWidth, state.CellPixelHeight
 	for _, qr := range m.codes {
 		if qr == nil {
 			continue
 		}
-		cmds = append(cmds, qr.SetTerminal(m.preferKitty, cw, ch))
+		cmds = append(cmds, qr.SetTerminal(m.preferKitty && state.Kitty == picture.KittyCapabilitySupported, cw, ch))
 		cmds = append(cmds, qr.SetSize(max(0, m.paneWidth()-2), max(0, m.height-6)))
 		// Broadcast; each component filters its own asynchronous frames.
 		cmds = append(cmds, qr.Update(msg))
@@ -141,7 +146,7 @@ func (m *model) View() tea.View {
 	if m.solid {
 		mode = "solid cells"
 	}
-	if m.preferKitty && picture.KittySupported() == picture.KittyCapabilitySupported {
+	if m.preferKitty && m.terminal.Snapshot().Kitty == picture.KittyCapabilitySupported {
 		mode = "Kitty"
 	}
 	heading := ansi.Truncate("ntqrcode · "+mode, m.width, "…")

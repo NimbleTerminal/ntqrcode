@@ -33,9 +33,9 @@ is insufficient room; no partial QR is rendered. Before removal call `Close()`
 and execute its cleanup command. It is idempotent and rejects late frames.
 
 There is no terminal Init, input read, mode change, or synchronous probe.
-The host's picture component performs normal capability detection; the QR
-component receives that choice and measured cell size. Unknown/unsupported
-Kitty falls back to explicit black/white Unicode half-blocks built directly
+The host's TerminalSession performs asynchronous capability detection; the QR
+component receives the confirmed choice and measured cell size through
+SetTerminal. Pass false for unknown/unsupported Kitty capability to fall back to explicit black/white Unicode half-blocks built directly
 from modules. Glyphs use the smallest integer column/half-row replication
 whose longer module side is at most 9/8 of its shorter side. This slight
 aspect tolerance avoids enormous layouts for ordinary sizes such as 8×17;
@@ -58,9 +58,10 @@ path bypasses resampling. We retain a transparent configured background and
 an exact source/target size. The QR source itself remains opaque. Resolution stays
 1.0. Tests inspect and independently decode the transmitted PNG, guarding this
 dependency behavior. Until the frame is transmitted, the component shows a
-preparation message instead of picture's resampled transitional glyph view.
-Content/layout changes get fresh IDs and delete the retired image using
-picture's existing commands and tmux handling. Presentation allocations are
+preparation message while Picture has no committed view. QR uses Picture only
+for Kitty output; glyphs remain direct module rendering. Content/layout changes
+clear failed fits and replace valid rasters atomically with fresh IDs. Picture owns ordered
+transmission, coalescing, cancellation, tmux handling, and late cleanup. Presentation allocations are
 bounded to 2,048-pixel edges, 256 Kitty cells per axis, or 65,536 glyph cells.
 
 Encoder review (October 2026):
@@ -184,46 +185,59 @@ Results, 2026-10-06 (Evan Wies; detail recorded only as reported):
 
 ## Migrating from NTCharts/picture to ntpicture
 
-This migration uses ntpicture's compatible low-level `Model`. The QR component
-already owns rasterization, fit validation, replacement, and cleanup, so it does
-not need to adopt the higher-level `Picture` lifecycle to change dependencies.
-The exported `qrcode` API stays unchanged.
+The first migration changed imports and used ntpicture's compatible low-level
+`Model` (`NewWithConfig` became `NewModelWithConfig`). The completed lifecycle
+migration uses one long-lived `*ntpicture.Picture` per QR component instead.
+The example host now uses `*ntpicture.TerminalSession` for discovery.
 
-1. Inventory production, demo, and test imports. Replace
-   `"github.com/NimbleMarkets/ntcharts/v2/picture"` with
-   `picture "nimbleterminal.dev/ntpicture"`. The alias keeps existing call sites
-   readable; the new package's declared name is `ntpicture`.
-2. Rename `picture.NewWithConfig` to `picture.NewModelWithConfig`.
-   For consumers using the default constructor, `picture.New` becomes
-   `picture.NewModel`. The new `ntpicture.New` constructs a different,
-   lifecycle-owning `Picture`; it is not the compatibility constructor.
-3. Retain `Model`, `Config`, `KittyFrameMsg`, capability helpers, and the
-   host-owned allocator. Keep asynchronous detection in the host and route
-   frame messages to each QR component. Run all returned commands, including
-   `Toggle`, replacement cleanup, and `Close`. Do not add synchronous probes.
-4. Preserve the QR rendering contract: opaque black/white modules, four-module
-   quiet zone, exact target-sized white padding, `FitFill`, transparent render
-   background, and resolution factor 1. Keep direct module-to-glyph output and
-   the preparation message; never show the renderer's transitional glyph view.
-   Retain the accepted-frame cleanup guard and immediate retirement on invalid
-   fit, replacement, resize, and removal.
-5. Replace the module dependency, tidy, and regenerate dependency notices.
-   Use a published tag or pseudo-version for a distributable library. A local
-   `replace` is only a development bridge: Go ignores a dependency's replacement
-   directives in downstream main modules. Do not weaken `TestDownstreamConsumer`
-   to conceal an unpublished dependency. Native and WASM must resolve the same
-   ntpicture revision; keep the existing WASM-only Bubble Tea/clipboard forks.
-6. Run `task test`, `task build-ex-qrcode`, then `task ci`. Preserve the tests
-   that independently decode actual Kitty PNG bytes and reconstructed glyphs,
-   plus resize, capability, multi-component, and cleanup regressions. Regenerate
-   notices with `task notices` before the CI notices check. Review the diff for
-   stale imports, local replacements, and accidental dependency upgrades.
-
-Adopting `Picture` or explicit `TerminalSession` is a separate lifecycle change.
-`Picture` defaults to retaining the previous image while preparing a replacement;
-QR needs `ClearOnReplace` and its own glyph policy. Its allocator also returns
-`(int, error)`, while QR's existing `Config.NextID` returns `int`. Do not silently
-change those contracts during an import migration.
+1. Replace the NTCharts picture import with
+   `picture "nimbleterminal.dev/ntpicture"`. Construct the owned renderer with
+   `picture.New(picture.Options{ClearOnReplace: true, HostGeometry: true, ...})`.
+   Do not recreate it on each layout: it must drain cancelled jobs before scheduling newer work.
+2. Keep QR encoding, fit validation, integer module rasterization, white padding,
+   and direct half-block/solid-cell glyph rendering in this package. Configure
+   the Picture with `FitFill`, transparent render background, and resolution 1.
+   Submit the exact cell-sized opaque raster via `Submit(Frame{Image: raster,
+   Cols: cols, Rows: rows, Mode: PictureKitty, CellWidth: cw, CellHeight: ch,
+   Exact: true, Immutable: true})`. Image and geometry change as one generation;
+   Exact rejects mismatched raster dimensions. Each submission owns newly
+   allocated pixels that are never subsequently mutated.
+3. Clear with `SetImage(nil)` on a failed QR fit, empty content, or transition
+   to custom glyphs. Valid Kitty layouts use Submit directly: ClearOnReplace
+   clears their previous front, including on a rejected submission. Do not
+   prepend a separate clear or call geometry setters on the old source.
+   While no front is committed, show the host-facing preparation message.
+4. Delete local frame-ready messages, accepted-output guards, and transmission
+   wrapping. Picture owns those races. Forward internal messages through
+   `Picture.Update`, even while QR shows glyphs or a fit error. Run every command
+   from clearing, Submit, Update, and Close.
+   Expose `Picture.Status().Err` through QR's `Err()` alongside layout errors.
+5. Keep `Config.NextID func() int` for source compatibility. Adapt it internally
+   to Picture's `(int, error)` allocator; reject invalid or immediately repeated
+   IDs. The host remains responsible for uniqueness across all components.
+   Glyph rendering does not allocate image IDs. Fresh IDs and immediate clearing
+   are required here; stable-ID streaming is not appropriate for QR replacement.
+6. Add optional `Config.Session` for transport settings. The host owns session
+   Init/Update/Close and calls QR's `SetTerminal` with confirmed capability and
+   measured geometry. **Behavior change:** true is now authoritative and no
+   longer gated on process-global detection. Existing hosts must combine the
+   graphics preference with affirmative capability detection themselves.
+7. Set HostGeometry so Picture.Update ignores all terminal events, including
+   private probe ticks. With an explicit session, let the host update that
+   session, read Snapshot, then call QR's SetTerminal before QR.Update. Without
+   a session, QR handles valid cell reports itself and rebuilds the raster first.
+   Other events can be forwarded without QR maintaining a terminal-message
+   filter. Discovery responses belong to the host. Close all QR components and
+   run their commands before closing the shared session; removing one QR must not close the session.
+8. Tests should inspect emitted `tea.RawMsg` Kitty APC bytes, not expect public
+   `KittyFrameMsg` preparation messages: Picture's preparation messages are
+   private. Retain PNG pixel equality and independent decoding, reconstructed
+   glyph decoding, multiple owners, coalescing, failed-fit clearing, allocator
+   errors/recovery, session geometry, and cleanup after accepted output even
+   when the component has been removed from message routing.
+9. Tidy dependencies, regenerate notices, run `task test`, native examples, and
+   `task ci`. Preserve WASM-only forks. Use a published dependency pin before
+   release; the temporary local replacement is described below.
 
 Automated decoding and builds do not establish phone scanning or visual parity.
 Native terminals, fonts, tmux, browser renderers, and camera scans still require

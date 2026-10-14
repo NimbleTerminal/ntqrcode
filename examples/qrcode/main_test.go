@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,7 +14,7 @@ import (
 )
 
 // Run the example's real host routing with asynchronous frames and capture
-// terminal output without creating a terminal session or probing one.
+// terminal output without starting a terminal program or probing a terminal.
 func pump(m *model, cmd tea.Cmd) (ids []int, raw string) {
 	var visit func(tea.Cmd)
 	visit = func(c tea.Cmd) {
@@ -24,7 +26,12 @@ func pump(m *model, cmd tea.Cmd) (ids []int, raw string) {
 			return
 		}
 		if r, ok := msg.(tea.RawMsg); ok {
-			raw += fmt.Sprint(r.Msg)
+			data := fmt.Sprint(r.Msg)
+			raw += data
+			if match := regexp.MustCompile(`\x1b_G[^;]*i=(\d+)`).FindStringSubmatch(data); match != nil && strings.Contains(data, "a=T") {
+				id, _ := strconv.Atoi(match[1])
+				ids = append(ids, id)
+			}
 			return
 		}
 		v := reflect.ValueOf(msg)
@@ -33,9 +40,6 @@ func pump(m *model, cmd tea.Cmd) (ids []int, raw string) {
 				visit(v.Index(i).Interface().(tea.Cmd))
 			}
 			return
-		}
-		if f, ok := msg.(picture.KittyFrameMsg); ok {
-			ids = append(ids, f.ID)
 		}
 		if _, ok := msg.(tea.QuitMsg); ok {
 			return
@@ -48,10 +52,7 @@ func pump(m *model, cmd tea.Cmd) (ids []int, raw string) {
 }
 
 func TestTwoComponentsThroughPublicAPI(t *testing.T) {
-	picture.ForceKittyCapability(picture.KittyCapabilitySupported)
-	picture.SetTmuxPassthrough(false)
-	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
-	m := newModel()
+	m := newModelWithSession(testSession(picture.KittyCapabilitySupported))
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: 110, Height: 32})
 	ids, _ := pump(m, cmd)
 	if len(ids) != 2 || ids[0] == ids[1] {
@@ -111,7 +112,7 @@ func TestPaneLayoutNeverWrapsAFittedQR(t *testing.T) {
 		t.Run("solid="+solid, func(t *testing.T) {
 			t.Setenv("TERM_PROGRAM", "")
 			t.Setenv("NTCHARTS_QRCODE_SOLID", solid)
-			m := newModel()
+			m := newModelWithSession(testSession(picture.KittyCapabilityUnsupported))
 			fitted := 0
 			for width := 20; width <= 220; width++ {
 				_, cmd := m.Update(tea.WindowSizeMsg{Width: width, Height: 90})
@@ -134,4 +135,9 @@ func TestPaneLayoutNeverWrapsAFittedQR(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testSession(capability picture.KittyCapability) *picture.TerminalSession {
+	tmux := false
+	return picture.NewTerminalSession(picture.TerminalOptions{Kitty: capability, SharedMemory: picture.KittyCapabilityUnsupported, TmuxPassthrough: &tmux})
 }

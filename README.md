@@ -93,31 +93,49 @@ Japanese and Latin text.
 ## Composing the terminal component
 
 ```go
-qr, err := qrcode.New(code, qrcode.Config{NextID: hostNextImageID})
-// Handle err, retain qr, and run the commands returned by these methods:
-cmd := tea.Batch(
+session := ntpicture.NewTerminalSession(ntpicture.TerminalOptions{})
+qr, err := qrcode.New(code, qrcode.Config{
+    Session: session, NextID: hostNextImageID,
+})
+// Handle err and retain both pointers. In the host's Init:
+cmd := session.Init()
+
+// In Update, update the session before reading its current state:
+sessionCmd := session.Update(msg)
+state := session.Snapshot()
+cmd = tea.Batch(
+    sessionCmd,
+    qr.SetTerminal(preferKitty && state.Kitty == ntpicture.KittyCapabilitySupported,
+        state.CellPixelWidth, state.CellPixelHeight),
     qr.SetSize(columns, rows),
-    qr.SetTerminal(useKitty, cellPixelWidth, cellPixelHeight),
     qr.Update(msg),
 )
-// Render qr.View() as a whole; inspect qr.Err() for fit/layout failures.
-// Before removing it, execute the command returned by qr.Close().
+// Render qr.View() as a whole; inspect qr.Err() for failures.
+// Before quitting, execute QR cleanup, then close the session:
+cmd = tea.Sequence(qr.Close(), func() tea.Msg {
+    session.Close()
+    return tea.Quit()
+})
 ```
 
 **Execute every returned command.** See the
 [complete host example](./examples/qrcode/main.go) for batching, native/WASM
 startup, and cleanup before quitting.
 
-- Use an existing `ntpicture.Model.Init()`/`Update()` for asynchronous terminal
-  detection. Forward its `CellPixelSize()` and the user's graphics preference
-  through `SetTerminal`. Unknown or unsupported Kitty capability uses glyphs.
-- Broadcast messages to all components. Each filters its own image frames.
+- Share one host-owned `ntpicture.TerminalSession` across components on the
+  same terminal. QR never initiates discovery or closes the host's session.
+- `SetTerminal` trusts the host's boolean; pass true only after positive Kitty
+  detection. It no longer consults process-global capability state. Pass false
+  for unknown/unsupported capability or when the user selects glyphs.
+- Broadcast messages to all components, including while showing glyphs or fit
+  errors, so cancelled work can drain. Each filters its own presentation work.
 - `NextID` must allocate fresh positive 24-bit IDs shared with every picture
   in the application, including across replacement and resize. Do not reuse IDs.
 - Execute commands from setters, `Update`, and `Close`. A model is a pointer
   with event-loop-owned state; do not copy it or mutate it concurrently.
 - `SetCode(nil)` clears content. Encode replacements before setting them so
   invalid input can leave the old content intact. `Close` is idempotent and final.
+- `Err()` also exposes asynchronous rendering and allocation failures.
 - `errors.Is(qr.Err(), qrcode.ErrDoesNotFit)` identifies insufficient space.
   The component never truncates the matrix or removes the quiet zone.
 

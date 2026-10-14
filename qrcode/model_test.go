@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func component(t *testing.T, text string, next func() int) *Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { m.Close() })
+	t.Cleanup(func() { run(m.Close(), m) })
 	return m
 }
 
@@ -37,9 +38,14 @@ func ids() func() int {
 	return func() int { id += 1000; return id }
 }
 
+type wireFrame struct {
+	ID  int
+	APC string
+}
+
 // run follows Bubble Tea batches and sequences, delivering async frames to
 // every model just as the host event loop does. Raw output goes to the test.
-func run(cmd tea.Cmd, models ...*Model) (frames []picture.KittyFrameMsg, raw string) {
+func run(cmd tea.Cmd, models ...*Model) (frames []wireFrame, raw string) {
 	var visit func(tea.Cmd)
 	visit = func(c tea.Cmd) {
 		if c == nil {
@@ -50,7 +56,12 @@ func run(cmd tea.Cmd, models ...*Model) (frames []picture.KittyFrameMsg, raw str
 			return
 		}
 		if r, ok := msg.(tea.RawMsg); ok {
-			raw += fmt.Sprint(r.Msg)
+			data := fmt.Sprint(r.Msg)
+			raw += data
+			if match := regexp.MustCompile(`\x1b_G[^;]*i=(\d+)`).FindStringSubmatch(data); match != nil && strings.Contains(data, "a=T") {
+				id, _ := strconv.Atoi(match[1])
+				frames = append(frames, wireFrame{ID: id, APC: data})
+			}
 			return
 		}
 		v := reflect.ValueOf(msg)
@@ -59,9 +70,6 @@ func run(cmd tea.Cmd, models ...*Model) (frames []picture.KittyFrameMsg, raw str
 				visit(v.Index(i).Interface().(tea.Cmd))
 			}
 			return
-		}
-		if f, ok := msg.(picture.KittyFrameMsg); ok {
-			frames = append(frames, f)
 		}
 		for _, model := range models {
 			visit(model.Update(msg))
@@ -119,7 +127,7 @@ func glyphImage(t *testing.T, output string, geometry ...int) image.Image {
 	return out
 }
 
-func transmitted(t *testing.T, frame picture.KittyFrameMsg) image.Image {
+func transmitted(t *testing.T, frame wireFrame) image.Image {
 	t.Helper()
 	var encoded strings.Builder
 	for _, chunk := range strings.Split(frame.APC, "\x1b_G")[1:] {
@@ -184,7 +192,7 @@ func TestSolidCellsDoNotDependOnGlyphGeometry(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Cleanup(func() { m.Close() })
+			t.Cleanup(func() { run(m.Close(), m) })
 			n := len(m.code.modules)
 			m.SetTerminal(false, tc.cw, tc.ch)
 			m.SetSize(n*tc.cols-1, n*tc.rows)
@@ -317,65 +325,207 @@ func TestKittyPixelsAreUnscaledAndOpaque(t *testing.T) {
 	decode(t, transmitted(t, frames[0]), text)
 }
 
-func TestCapabilityMultipleInstancesAndCleanup(t *testing.T) {
+// Capture preparation results without delivering them to a component yet.
+func messages(cmd tea.Cmd) []tea.Msg {
+	var result []tea.Msg
+	var visit func(tea.Cmd)
+	visit = func(c tea.Cmd) {
+		if c == nil {
+			return
+		}
+		msg := c()
+		if msg == nil {
+			return
+		}
+		v := reflect.ValueOf(msg)
+		if v.Kind() == reflect.Slice && v.Type().Elem() == reflect.TypeOf(tea.Cmd(nil)) {
+			for i := 0; i < v.Len(); i++ {
+				visit(v.Index(i).Interface().(tea.Cmd))
+			}
+			return
+		}
+		result = append(result, msg)
+	}
+	visit(cmd)
+	return result
+}
+
+func TestHostCapabilityMultipleInstancesAndCleanup(t *testing.T) {
+	// Host decisions work independently of process-global detection.
+	picture.ForceKittyCapability(picture.KittyCapabilityUnsupported)
+	picture.SetTmuxPassthrough(false)
 	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
 	next := ids()
 	a, b := component(t, "first code", next), component(t, "second code", next)
-	a.SetSize(80, 40)
-	b.SetSize(80, 40)
-	for _, capability := range []picture.KittyCapability{picture.KittyCapabilityUnknown, picture.KittyCapabilityUnsupported} {
-		picture.ForceKittyCapability(capability)
-		_, raw := run(a.SetTerminal(true, 8, 16), a, b)
-		if raw != "" || !strings.Contains(a.View(), "▀") {
-			t.Fatal("unknown/unsupported capability emitted Kitty or probed")
-		}
+	run(a.SetSize(80, 40), a)
+	run(b.SetSize(80, 40), b)
+	_, raw := run(a.SetTerminal(false, 8, 16), a, b)
+	if raw != "" || !strings.Contains(a.View(), "▀") {
+		t.Fatal("glyph selection emitted Kitty or probed")
 	}
-	picture.ForceKittyCapability(picture.KittyCapabilitySupported)
 	fa, _ := run(a.SetTerminal(true, 8, 16), a, b)
 	fb, _ := run(b.SetTerminal(true, 8, 16), a, b)
 	if len(fa) != 1 || len(fb) != 1 || fa[0].ID == fb[0].ID {
-		t.Fatal("instances collided")
+		t.Fatalf("instances collided: %v %v", fa, fb)
 	}
 	viewB := b.View()
-	stale, _ := run(a.SetCode(encoded(t, "stale encoded frame", Medium)))
-	frames, raw := run(a.SetCode(encoded(t, "current code", Medium)), a, b)
-	if len(frames) != 1 || !strings.Contains(raw, fmt.Sprintf("a=d,d=I,i=%d", stale[0].ID)) {
-		t.Fatal("replacement did not delete old ID")
+	stale := messages(a.SetCode(encoded(t, "stale encoded frame", Medium)))
+	current := a.SetCode(encoded(t, "current code", Medium))
+	if a.View() != "Preparing QR…" {
+		t.Fatal("replacement retained stale view")
+	}
+	frames, raw := run(current, a, b)
+	for _, msg := range stale {
+		f, r := run(func() tea.Msg { return msg }, a, b)
+		frames = append(frames, f...)
+		raw += r
+	}
+	if len(frames) != 1 {
+		t.Fatalf("wanted only latest frame, got %d", len(frames))
 	}
 	decode(t, transmitted(t, frames[0]), "current code")
-	if a.Update(stale[0]) != nil || b.Update(frames[0]) != nil || b.View() != viewB {
-		t.Fatal("stale or foreign frame was accepted")
+	if b.View() != viewB {
+		t.Fatal("foreign frame changed another component")
 	}
 	_, raw = run(a.Close(), a, b)
-	if !strings.Contains(raw, fmt.Sprintf("a=d,d=I,i=%d", frames[0].ID)) || a.View() != "" || a.Close() != nil || a.Update(frames[0]) != nil {
-		t.Fatal("removal retained graphics or accepted a late frame")
+	if !strings.Contains(raw, fmt.Sprintf("a=d,d=I,i=%d", frames[0].ID)) || a.View() != "" || a.Close() != nil {
+		t.Fatal("removal retained graphics")
+	}
+	for _, msg := range stale {
+		if a.Update(msg) != nil {
+			t.Fatal("closed component accepted late work")
+		}
 	}
 	_, raw = run(b.SetSize(1, 1), a, b)
 	if !errors.Is(b.Err(), ErrDoesNotFit) || !strings.Contains(raw, fmt.Sprintf("a=d,d=I,i=%d", fb[0].ID)) {
-		t.Fatal("insufficient space retained old Kitty code")
+		t.Fatal("insufficient space retained old code")
 	}
 	run(b.SetSize(80, 40), b)
-	picture.ForceKittyCapability(picture.KittyCapabilityUnsupported)
-	_, raw = run(b.SetTerminal(true, 8, 16), b)
+	_, raw = run(b.SetTerminal(false, 8, 16), b)
 	if !strings.Contains(raw, "a=d,d=I") {
-		t.Fatal("capability fallback did not clear Kitty")
+		t.Fatal("glyph transition did not clear Kitty")
 	}
 	decode(t, glyphImage(t, b.View()), "second code")
 }
 
 func TestRemovalAfterFrameAcceptedStillDeletesLateTransmission(t *testing.T) {
-	picture.ForceKittyCapability(picture.KittyCapabilitySupported)
-	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
+	picture.SetTmuxPassthrough(false)
 	m := component(t, "accepted but not transmitted", ids())
-	m.SetSize(80, 40)
-	frames, _ := run(m.SetTerminal(true, 8, 16))
-	accepted := m.Update(frames[0])
+	run(m.SetSize(80, 40), m)
+	prepared := messages(m.SetTerminal(true, 8, 16))
+	if len(prepared) != 1 {
+		t.Fatalf("preparation messages: %d", len(prepared))
+	}
+	accepted := m.Update(prepared[0])
+	sequence := reflect.ValueOf(accepted())
+	// Emit the raw frame, then remove the component before completion runs.
+	frames, _ := run(sequence.Index(0).Interface().(tea.Cmd))
+	if len(frames) != 1 {
+		t.Fatal("no accepted transmission")
+	}
 	run(m.Close())
-	// Deliberately finish an accepted command after its component is gone.
-	// No model remains to consume readyMsg: cleanup must happen in the command.
-	_, raw := run(accepted)
-	delete := fmt.Sprintf("\x1b_Ga=d,d=I,i=%d,q=2\x1b\\", frames[0].ID)
-	if !strings.HasSuffix(raw, delete) || !strings.Contains(raw, frames[0].APC) {
-		t.Fatal("a late raw transmission resurrected the removed QR")
+	_, raw := run(sequence.Index(1).Interface().(tea.Cmd))
+	deletion := fmt.Sprintf("\x1b_Ga=d,d=I,i=%d,q=2\x1b\\", frames[0].ID)
+	if !strings.HasSuffix(raw, deletion) {
+		t.Fatal("late output was not cleaned without model routing")
+	}
+}
+
+func TestSessionGeometryRemainsHostOwned(t *testing.T) {
+	tmux := false
+	session := picture.NewTerminalSession(picture.TerminalOptions{
+		Kitty: picture.KittyCapabilitySupported, SharedMemory: picture.KittyCapabilityUnsupported,
+		CellPixelWidth: 9, CellPixelHeight: 19, TmuxPassthrough: &tmux,
+	})
+	defer session.Close()
+	payload := "session geometry ✓"
+	m, err := New(encoded(t, payload, Medium), Config{Session: session, NextID: ids()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { run(m.Close(), m) }()
+	run(m.SetSize(80, 40), m)
+	frames, _ := run(m.SetTerminal(true, 9, 19), m)
+	if len(frames) != 1 {
+		t.Fatal("missing initial frame")
+	}
+	view := m.View()
+	event := uv.CellSizeEvent{Width: 10, Height: 20}
+	notifications := messages(session.Update(event))
+	frames, _ = run(m.Update(event), m)
+	for _, msg := range notifications {
+		f, _ := run(m.Update(msg), m)
+		frames = append(frames, f...)
+	}
+	if len(frames) != 0 || m.View() != view {
+		t.Fatal("session event rescaled the QR before host layout")
+	}
+	frames, _ = run(m.SetTerminal(true, 10, 20), m)
+	if len(frames) != 1 {
+		t.Fatal("host geometry did not regenerate QR")
+	}
+	img := transmitted(t, frames[0])
+	decode(t, img, payload)
+	n := len(m.code.modules)
+	for y := range img.Bounds().Dy() {
+		for x := range img.Bounds().Dx() {
+			want := uint32(65535)
+			if x < n*8 && y < n*8 && m.code.modules[y/8][x/8] {
+				want = 0
+			}
+			r, g, b, a := img.At(x, y).RGBA()
+			if r != want || g != want || b != want || a != 65535 {
+				t.Fatalf("session resize filtered pixel %d,%d", x, y)
+			}
+		}
+	}
+	for _, cw := range []int{0, 257} {
+		_, raw := run(m.SetTerminal(true, cw, 20), m)
+		if m.Err() == nil || m.pic.View() != "" || !strings.Contains(raw, "a=d,d=I") {
+			t.Fatal("invalid geometry retained a QR")
+		}
+		run(m.SetTerminal(true, 10, 20), m)
+	}
+}
+
+func TestCancelledPreparationDrainsWhileShowingGlyphs(t *testing.T) {
+	m := component(t, "old payload", ids())
+	run(m.SetSize(80, 40), m)
+	renderer := m.pic
+	pending := messages(m.SetTerminal(true, 8, 16))
+	run(m.SetTerminal(false, 8, 16), m)
+	run(m.SetCode(encoded(t, "new payload", Medium)), m)
+	for _, msg := range pending {
+		frames, _ := run(func() tea.Msg { return msg }, m)
+		if len(frames) != 0 {
+			t.Fatal("cancelled image transmitted")
+		}
+	}
+	decode(t, glyphImage(t, m.View()), "new payload")
+	frames, _ := run(m.SetTerminal(true, 8, 16), m)
+	if len(frames) != 1 || m.pic != renderer {
+		t.Fatal("renderer did not drain or was recreated")
+	}
+	decode(t, transmitted(t, frames[0]), "new payload")
+}
+
+func TestPictureAllocatorErrorsSurfaceAndRecover(t *testing.T) {
+	for _, bad := range []int{0, 1 << 24, 1100} {
+		t.Run(fmt.Sprint(bad), func(t *testing.T) {
+			values := []int{1100, bad, 2100}
+			i := 0
+			m := component(t, "first", func() int { v := values[i]; i++; return v })
+			run(m.SetSize(80, 40), m)
+			run(m.SetTerminal(true, 8, 16), m)
+			frames, raw := run(m.SetCode(encoded(t, "invalid allocation", Medium)), m)
+			if len(frames) != 0 || m.Err() == nil || m.pic.View() != "" || !strings.Contains(raw, "a=d,d=I,i=1100") {
+				t.Fatal("allocator error retained old content or was hidden")
+			}
+			frames, _ = run(m.SetCode(encoded(t, "recovered", Medium)), m)
+			if m.Err() != nil || len(frames) != 1 {
+				t.Fatalf("allocator recovery failed: %v", m.Err())
+			}
+			decode(t, transmitted(t, frames[0]), "recovered")
+		})
 	}
 }

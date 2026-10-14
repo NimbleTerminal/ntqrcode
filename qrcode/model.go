@@ -7,7 +7,6 @@ import (
 	"image/color"
 	"image/draw"
 	"strings"
-	"sync/atomic"
 
 	tea "charm.land/bubbletea/v2"
 	uv "github.com/charmbracelet/ultraviolet"
@@ -26,6 +25,10 @@ var ErrDoesNotFit = errors.New("QR code doesn't fit")
 // terminals such as Apple Terminal that draw U+2580 from the font, misplacing
 // it within the cell. It does not affect Kitty rendering.
 type Config struct {
+	// Session supplies transport settings from the host-owned terminal connection.
+	// The host runs its Init/Update/Close and passes capability and geometry via
+	// SetTerminal. Nil retains the default session transport settings.
+	Session    *picture.TerminalSession
 	NextID     func() int
 	SolidCells bool
 }
@@ -34,17 +37,15 @@ type Config struct {
 // Update return commands for the host to run; View returns only its content.
 // Do not copy a Model. The host must call Close and run its cleanup command
 // before removing it. No Init/probe is needed: the host supplies capability
-// and cell geometry through SetTerminal, from its existing picture model.
+// and cell geometry through SetTerminal, from its terminal session.
 type Model struct {
 	code         *Code
-	nextID       func() int
-	pic          *picture.Model
-	flight       *placement
-	id           int
+	pic          *picture.Picture
+	session      *picture.TerminalSession
+	lastID       int
 	w, h, cw, ch int
 	kitty, solid bool
 	glyph        string
-	grid         string
 	err          error
 	closed       bool
 }
@@ -53,7 +54,22 @@ func New(code *Code, cfg Config) (*Model, error) {
 	if code == nil || len(code.modules) == 0 || cfg.NextID == nil {
 		return nil, errors.New("QR component requires a code and the host's image-ID allocator")
 	}
-	return &Model{code: code, nextID: cfg.NextID, solid: cfg.SolidCells, cw: 8, ch: 16, err: ErrDoesNotFit}, nil
+	m := &Model{code: code, session: cfg.Session, solid: cfg.SolidCells, cw: 8, ch: 16, err: ErrDoesNotFit}
+	m.pic = picture.New(picture.Options{
+		Session:        cfg.Session,
+		ClearOnReplace: true,
+		HostGeometry:   true,
+		Render:         picture.Config{KittyZ: -1, Fit: picture.FitFill, KittyResolutionFactor: 1},
+		NextID: func() (int, error) {
+			id := cfg.NextID()
+			if id <= 0 || id >= 1<<24 || id == m.lastID {
+				return 0, errors.New("QR image allocator must return fresh positive 24-bit IDs")
+			}
+			m.lastID = id
+			return id, nil
+		},
+	})
+	return m, nil
 }
 
 // SetCode replaces content. Nil clears it. Encode errors can be handled before
@@ -76,13 +92,12 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 }
 
 // SetTerminal consumes the host's graphics choice and cell pixel dimensions.
-// Kitty also requires ntpicture's process-wide affirmative detection.
-// Unknown/unsupported capability falls back to glyphs; this never probes.
+// The host must pass true only after affirmative capability detection.
+// This decision is authoritative; no process-global capability is consulted.
 // The default geometry is 8x16 until the host supplies its measured size.
 // Glyphs repeat whole columns and half-rows to approximate square modules
 // (longer side at most 9/8 of the shorter). Kitty pixels remain exactly square.
 func (m *Model) SetTerminal(kitty bool, cellWidth, cellHeight int) tea.Cmd {
-	kitty = kitty && picture.KittySupported() == picture.KittyCapabilitySupported
 	if m.closed || (m.kitty == kitty && m.cw == cellWidth && m.ch == cellHeight) {
 		return nil
 	}
@@ -96,54 +111,42 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	if m.closed {
 		return nil
 	}
-	if cell, ok := msg.(uv.CellSizeEvent); ok {
-		return m.SetTerminal(m.kitty, cell.Width, cell.Height)
-	}
-	if ready, ok := msg.(readyMsg); ok {
-		if ready.owner == m && ready.id == m.id && m.pic != nil {
-			m.grid = ready.grid
+	switch v := msg.(type) {
+	case uv.CellSizeEvent:
+		// Explicit sessions are host-owned: their geometry arrives via SetTerminal.
+		// Never let Picture resize the old raster before QR has rebuilt its modules.
+		if m.session != nil || v.Width <= 0 || v.Height <= 0 {
+			return nil
 		}
-		return nil
+		return m.SetTerminal(m.kitty, v.Width, v.Height)
 	}
-	if m.pic != nil {
-		cmd := m.pic.Update(msg)
-		if frame, ok := msg.(picture.KittyFrameMsg); ok && cmd != nil {
-			id := m.id
-			flight := m.flight
-			// Reveal only after picture's transmission and placement sequence.
-			// picture.View's temporary image-to-glyph fallback resamples, so we
-			// deliberately never use that transitional representation for a QR.
-			return tea.Sequence(cmd, func() tea.Msg {
-				// Removal may happen after Update accepted the frame but before
-				// its raw transmission ran. Repeat the same ID-specific cleanup
-				// after that transmission, even if the host removed this model.
-				if !flight.active.Load() && flight.cleanup != nil {
-					return flight.cleanup()
-				}
-				return readyMsg{m, id, frame.Grid}
-			})
-		}
-		return cmd
-	}
-	return nil
+	// HostGeometry keeps terminal events out of Picture. Continue draining its
+	// cancelled jobs even while showing custom glyphs or a layout error.
+	return m.pic.Update(msg)
 }
 
-// Err reports an invalid layout or wraps ErrDoesNotFit with required space.
-// View never returns a partial QR. A host may show Err in its own layout.
-func (m *Model) Err() error { return m.err }
+// Err reports layout, allocation, or asynchronous rendering failures.
+// Insufficient space wraps ErrDoesNotFit. View never returns a partial QR.
+func (m *Model) Err() error {
+	if m.err != nil {
+		return m.err
+	}
+	return m.pic.Status().Err
+}
 
 func (m *Model) View() string {
 	if m.closed || m.code == nil {
 		return ""
 	}
-	if m.err != nil {
-		return m.err.Error()
+	if err := m.Err(); err != nil {
+		return err.Error()
 	}
-	if m.pic != nil {
-		if m.grid == "" {
+	if m.kitty {
+		view := m.pic.View()
+		if view == "" {
 			return "Preparing QR…"
 		}
-		return m.grid
+		return view
 	}
 	return m.glyph
 }
@@ -152,34 +155,23 @@ func (m *Model) View() string {
 // command (including its tmux handling). It is idempotent.
 func (m *Model) Close() tea.Cmd {
 	m.closed, m.glyph = true, ""
-	return m.retire()
-}
-
-func (m *Model) retire() tea.Cmd {
-	m.grid = ""
-	if m.pic == nil {
-		return nil
-	}
-	cmd := m.pic.SetImage(nil)
-	m.flight.cleanup = cmd
-	m.flight.active.Store(false)
-	m.pic = nil
-	return cmd
+	return m.pic.Close()
 }
 
 func (m *Model) layout() tea.Cmd {
-	cleanup := m.retire()
+	// Clear explicitly on failed fit, empty content, or a glyph transition.
+	// Successful Kitty layouts replace image and geometry atomically in Submit.
 	m.err, m.glyph = nil, ""
 	if m.code == nil {
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	if len(m.code.modules) == 0 {
 		m.err = errors.New("no QR code")
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	if m.cw < 1 || m.ch < 1 || m.cw > 256 || m.ch > 256 {
 		m.err = errors.New("QR cell dimensions must be 1..256 pixels")
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	n := len(m.code.modules)
 	if !m.kitty {
@@ -190,22 +182,22 @@ func (m *Model) layout() tea.Cmd {
 		cols, rows := n*x, (n*y+1)/2
 		if cols > m.w || rows > m.h || cols*rows > 65536 {
 			m.err = fmt.Errorf("%w: needs %d columns × %d rows in glyph mode", ErrDoesNotFit, cols, rows)
-			return cleanup
+			return m.pic.SetImage(nil)
 		}
 		m.glyph = halfBlocks(m.code.modules, x, y, m.solid)
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	// Bound allocation, cell multiplication, and Kitty's diacritic grid.
 	cols, rows := min(m.w, 256, MaxImageEdge/m.cw), min(m.h, 256, MaxImageEdge/m.ch)
 	scale := min(8, cols*m.cw/n, rows*m.ch/n)
 	if scale < 1 {
 		m.err = fmt.Errorf("%w: needs at least %d × %d pixels including the quiet zone", ErrDoesNotFit, n, n)
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	src, err := m.code.Image(scale)
 	if err != nil {
 		m.err = err
-		return cleanup
+		return m.pic.SetImage(nil)
 	}
 	side := n * scale
 	cols, rows = (side+m.cw-1)/m.cw, (side+m.ch-1)/m.ch
@@ -216,33 +208,12 @@ func (m *Model) layout() tea.Cmd {
 	out := image.NewRGBA(image.Rect(0, 0, cols*m.cw, rows*m.ch))
 	draw.Draw(out, out.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
 	draw.Draw(out, src.Bounds(), src, image.Point{}, draw.Src)
-	id := m.nextID()
-	if id <= 0 || id >= 1<<24 || id == m.id {
-		m.err = errors.New("QR image allocator must return fresh positive 24-bit IDs")
-		return cleanup
-	}
-	m.id = id
-	p := picture.NewModelWithConfig(picture.Config{KittyID: id, KittyZ: -1, Fit: picture.FitFill,
-		CellPixelWidth: m.cw, CellPixelHeight: m.ch, KittyResolutionFactor: 1})
-	m.pic = &p
-	m.flight = &placement{}
-	m.flight.active.Store(true)
-	size := p.SetSize(cols, rows)
-	toggle := p.Toggle()
-	return tea.Sequence(cleanup, size, toggle, p.SetImage(out))
-}
-
-type readyMsg struct {
-	owner *Model
-	id    int
-	grid  string
-}
-
-// cleanup is written before active becomes false; commands use the atomic
-// flag's ordering to read it. No event-loop-owned Model state is read by them.
-type placement struct {
-	active  atomic.Bool
-	cleanup tea.Cmd
+	// Each raster is newly allocated and never mutated after submission.
+	return m.pic.Submit(picture.Frame{
+		Image: out, Cols: cols, Rows: rows,
+		Mode: picture.PictureKitty, CellWidth: m.cw, CellHeight: m.ch,
+		Exact: true, Immutable: true,
+	})
 }
 
 func gcd(a, b int) int {
