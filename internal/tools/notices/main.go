@@ -31,16 +31,18 @@ func main() {
 
 func run() error {
 	modules := map[string]module{}
-	// The native binary, and the browser app with its own module.
+	// Include both native examples and the WASM dependency graph.
 	for _, build := range []struct {
 		dir  string
 		env  []string
-		pkgs string
+		pkgs []string
 	}{
-		{".", nil, "./examples/qrcode"},
-		{".", []string{"GOOS=js", "GOARCH=wasm", "GOWORK=" + mustWorkspace()}, "./examples/qrcode"},
+		{".", nil, []string{"./examples/qrcode", "./examples/make"}},
+		{".", []string{"GOOS=js", "GOARCH=wasm", "GOWORK=" + mustWorkspace()}, []string{"./examples/qrcode", "./examples/make"}},
 	} {
-		cmd := exec.Command("go", "list", "-deps", "-f", `{{with .Module}}{{.Path}}	{{.Version}}	{{.Dir}}{{end}}`, build.pkgs)
+		// Credit versioned forks separately; local replacements keep their module name.
+		args := append([]string{"list", "-deps", "-f", `{{with .Module}}{{$m := .}}{{with .Replace}}{{if .Version}}{{$m = .}}{{end}}{{end}}{{with $m}}{{.Path}}	{{.Version}}	{{.Dir}}{{end}}{{end}}`}, build.pkgs...)
+		cmd := exec.Command("go", args...)
 		cmd.Dir, cmd.Env = build.dir, append(os.Environ(), build.env...)
 		out, err := cmd.Output()
 		if err != nil {

@@ -53,7 +53,7 @@ tasks:
     deps:
       - clean-wasm-site
     cmds:
-      - rm -f bin/ntqrcode
+      - rm -f bin/ntqrcode bin/ntqrcode-make
       - rm -rf .task
 
 ###############################################################################
@@ -63,6 +63,17 @@ tasks:
     desc: 'Build all examples'
     deps:
       - build-ex-qrcode
+      - build-ex-make
+
+  build-ex-make:
+    desc: 'Build the interactive QR generator'
+    cmds:
+      - go build -mod=readonly -o bin/ntqrcode-make ./examples/make
+
+  run-make:
+    desc: 'Run the interactive QR generator'
+    cmds:
+      - go run ./examples/make
 
   build-ex-qrcode:
     desc: 'Build the two-code terminal example'
@@ -79,14 +90,37 @@ tasks:
 ###############################################################################
 # Demo website via booba
 
-  build-wasm-site:
-    desc: 'Build the WASM demo site into web/'
+  build-wasm:
+    desc: 'Build the browser demos into web/demos/'
+    env:
+      GOWORK: '{{.ROOT_DIR}}/wasm.work'
+      GOOS: js
+      GOARCH: wasm
+      CGO_ENABLED: '0'
     cmds:
-      - GOWORK="$PWD/wasm.work" GOARCH=wasm GOOS=js go build -mod=readonly -o web/app.wasm ./examples/qrcode
+      - mkdir -p web/demos
+      - for: [make, qrcode]
+        cmd: go build -mod=readonly -o web/demos/{{.ITEM}}.wasm ./examples/{{.ITEM}}
+
+  build-wasm-site:
+    desc: 'Build the WASM demo site into web/ and export the pinned booba runtime'
+    cmds:
+      - task: build-wasm
       - go tool booba-assets web/
-      - cp LICENSE.txt THIRD_PARTY_NOTICES.md web/booba/
-    generates:
-      - web/app.wasm
+      - cp LICENSE.txt web/LICENSE
+      - cp THIRD_PARTY_NOTICES.md web/
+
+  check-site:
+    desc: 'Check site script syntax, required assets, and the generator under Node'
+    cmds:
+      - node --check web/site.js
+      - node scripts/check-site.mjs
+      - task: smoke-wasm
+
+  smoke-wasm:
+    desc: 'Exercise the built browser generator under Node'
+    cmds:
+      - node scripts/smoke-make.mjs
 
   serve-wasm-site:
     desc: 'Serve web/ at http://localhost:8000/ntqrcode/ (matches GH Pages prefix)'
@@ -102,8 +136,8 @@ tasks:
   clean-wasm-site:
     desc: 'Remove generated WASM demo site artifacts'
     cmds:
-      - rm -rf web/booba web/ghostty-web
-      - rm -f web/wasm_exec.js web/app.wasm
+      - rm -rf web/booba web/ghostty-web web/demos
+      - rm -f web/wasm_exec.js web/LICENSE web/THIRD_PARTY_NOTICES.md
 
 ###############################################################################
 # Dependency notices and verification
@@ -140,5 +174,6 @@ tasks:
       - GOOS=windows GOARCH=amd64 go build -mod=readonly -o /dev/null ./...
       - task: build
       - task: build-wasm-site
+      - task: check-site
       - task: notices-check
       - task: vuln

@@ -62,17 +62,23 @@ with `nimbleterminal.dev/ntqrcode/qrcode`; the public API is unchanged.
 
 ```sh
 go get nimbleterminal.dev/ntqrcode/qrcode
-go run ./examples/qrcode
+go run ./examples/make
 ```
 
-The example displays two QR codes. Press `n` to change the first URL, `2` to
+The interactive generator accepts text or a URL. Press Enter to make a QR,
+Ctrl+U to clear the input, Ctrl+G to switch graphics, and Ctrl+C to quit.
+Editing the text clears the old code until you generate again. The browser
+demo runs this same application, with all QR encoding performed locally.
+
+`go run ./examples/qrcode` runs the original two-component example. It displays
+two QR codes. Press `n` to change the first URL, `2` to
 hide or restore the second code, `g` to switch rendering modes, and `q` to quit.
 If your terminal is too narrow for both codes, press `2` to make room.
 
 ```go
 import "nimbleterminal.dev/ntqrcode/qrcode"
 
-code, err := qrcode.Encode("https://nimble.markets/", qrcode.Options{})
+code, err := qrcode.Encode("https://nimbleterminal.com/", qrcode.Options{})
 if err != nil {
     return err
 }
@@ -164,7 +170,7 @@ code depends on the text and correction level. `Image(scale)` accepts integer
 scales from 1 to 16, up to 2,048 pixels per edge. Terminal output is limited to
 256 Kitty cells per axis or 65,536 glyph cells.
 
-The example has been scanned with a phone in Apple Terminal (solid cells)
+The original two-code example has been scanned with a phone in Apple Terminal (solid cells)
 and iTerm2 (half-blocks). Kitty graphics and tmux have also been checked
 visually. See [DEVELOP.md](./DEVELOP.md#manual-acceptance-checks) for the
 recorded results and remaining checks.
@@ -174,14 +180,21 @@ recorded results and remaining checks.
 ```sh
 task ci                 # full checks, builds, and vulnerability scans
 task test               # tests without a vulnerability-database query
-task build-ex-qrcode    # build bin/ntqrcode
+task build-ex-qrcode    # build the original two-code example
+task build-ex-make      # build bin/ntqrcode-make
+task run-make           # run the interactive generator
 task serve-wasm-site    # http://localhost:8000/ntqrcode/
 task clean              # remove generated binaries and demo assets
 ```
 
-The browser demo runs the same example through [go-booba](https://github.com/NimbleMarkets/go-booba).
+The browser demo site runs `examples/make` and `examples/qrcode` through
+[go-booba](https://github.com/NimbleMarkets/go-booba). Its landing page follows
+the sibling ntcanvas and ntpicture sites: `web/index.html`, `site.css`, and
+`site.js` are tracked; the WASM binaries and runtime assets are generated.
 `wasm.work` selects the Bubble Tea and clipboard forks needed for WASM;
-native builds use upstream versions.
+native builds use upstream versions. The demos publish their keyboard controls
+through booba actions, providing clickable Generate, Clear, and Graphics buttons
+and controls for the two-code example.
 
 Encoding uses [piglig/go-qr v2.6.0](https://github.com/piglig/go-qr/releases/tag/v2.6.0).
 Rendering uses [ntpicture](https://github.com/NimbleTerminal/ntpicture).
@@ -208,4 +221,4 @@ dependency review.
 Dependency notices are in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ----
-Made with :heart: and :fire: by the team behind [Nimble.Markets](https://nimble.markets).
+Made with :heart: and :fire: by the team behind [Nimble Terminal](https://nimbleterminal.com).

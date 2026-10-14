@@ -2,13 +2,28 @@
 
 ## Unreleased
 
+* Advertise both demos’ keyboard controls through booba actions so browser users
+  can generate, clear, toggle graphics, and control the two-code example with buttons.
+
+* Upgrade booba assets to v0.9.2 so the demo action-bar imports resolve; validate
+  runtime exports in the site check to catch startup failures.
+
+* Replace the full-screen browser shell with the shared NimbleTerminal demo
+  landing page: demo cards, titled terminal frame with Restart, booba action
+  bar, status and help text, and footer license links. Serve both
+  `examples/make` and `examples/qrcode` as `web/demos/<name>.wasm`, and add
+  `task check-site` to validate site assets and links in CI.
+* Add an interactive text/URL-to-QR generator for native terminals and the
+  browser demo, with Unicode editing, paste, validation, and cleanup on edits.
+  Keep the original two-component example available separately.
+
 * Migrate rendering from `github.com/NimbleMarkets/ntcharts/v2/picture` to
   `nimbleterminal.dev/ntpicture.Picture`, delegating preparation, cancellation,
   presentation, and cleanup while preserving exact QR pixels and custom glyphs.
   Use `HostGeometry` and atomic `Submit` with exact, immutable rasters to prevent
   terminal events or intermediate geometry changes from resampling old pixels.
-* Add optional `Config.Session` for host-owned terminal transport; the terminal example
-  uses an explicit `TerminalSession` instance and closes it after QR cleanup.
+* Add optional `Config.Session` for host-owned terminal transport; both examples
+  use explicit `TerminalSession` instances and close them after QR cleanup.
 * **Behavior change:** `SetTerminal` now trusts the host's confirmed Kitty choice
   instead of requiring process-global detection. Hosts must combine their
   graphics preference with affirmative capability detection. The `NextID`

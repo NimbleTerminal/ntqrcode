@@ -6,8 +6,10 @@ from gloss. Module: `nimbleterminal.dev/ntqrcode`, Go 1.26.8+.
 ## Layout
 
 - `qrcode`: encoding, image generation, and terminal component. No application dependencies.
-- `examples/qrcode`: two-component native/WASM demo using the public API.
-- `web`: booba browser demo shell; generated assets are ignored.
+- `examples/qrcode`: two-component native example using the public API.
+- `examples/make`: interactive QR generator shared by native and WASM demos.
+- `web`: booba demo landing page (`index.html`, `site.css`, `site.js` tracked);
+  `demos/`, runtime, and license copies are generated and ignored.
 - `wasm.work`: Bubble Tea and clipboard forks for WASM only.
 - `internal/tools/notices`: generates demo dependency licenses with `task notices`.
 

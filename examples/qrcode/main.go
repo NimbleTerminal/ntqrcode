@@ -6,11 +6,12 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	booba "github.com/NimbleMarkets/go-booba"
 	"github.com/charmbracelet/x/ansi"
 	picture "nimbleterminal.dev/ntpicture"
+	"nimbleterminal.dev/ntqrcode/internal/demorun"
 	"nimbleterminal.dev/ntqrcode/qrcode"
 )
 
@@ -157,7 +158,10 @@ func (m *model) View() tea.View {
 }
 
 func main() {
-	if err := booba.Run(newModel()); err != nil {
+	if err := demorun.Run(newModel(), "two-codes", "Two QR codes", demorun.Keys{
+		Primary: []key.Binding{demorun.Binding("n", "Change URL"), demorun.Binding("2", "Second code"), demorun.Binding("g", "Graphics")},
+		More:    []key.Binding{demorun.Binding("q", "Quit")},
+	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

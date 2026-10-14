@@ -1,7 +1,9 @@
 .task/
 .DS_Store
 bin/
-web/app.wasm
+web/demos/
 web/wasm_exec.js
 web/booba/
 web/ghostty-web/
+web/LICENSE
+web/THIRD_PARTY_NOTICES.md

@@ -2,7 +2,8 @@
 
 Run `task ci` before submitting changes. The module follows the sibling
 NTCharts projects: public component in `qrcode/`, a runnable example in
-`examples/qrcode/`, native Task builds, and a booba WASM demo.
+`examples/qrcode/`, an interactive generator in `examples/make/`, native Task
+builds, and a booba WASM demo.
 
 The component was extracted from gloss; application overlays, key bindings,
 URL selection, and export-file policy remain in gloss.
@@ -136,6 +137,12 @@ check; `task test` remains available without the vulnerability-database query.
 Like the SVG/PDF companions, weekly Dependabot checks cover Actions and Go
 modules. Task targets include `go-update`, `clean`, and `clean-wasm-site`;
 `serve-wasm-site` serves `/ntqrcode/` to match the GitHub Pages prefix.
+The site shell (`web/index.html`, `site.css`, `site.js`) is tracked and
+follows the ntcanvas/ntpicture layout: demo cards select `?demo=make` or
+`?demo=qrcode`, `site.js` fetches `demos/<name>.wasm`, installs the booba
+action bar and renderer HUD, and reports status below the terminal frame.
+`build-wasm-site` copies `LICENSE.txt` and `THIRD_PARTY_NOTICES.md` next to
+the page for the footer links; booba-assets never overwrites the tracked page.
 Pages builds on `main` pushes or manual dispatch, with deployment permissions
 limited to the deploy job. Its build job runs the full `task ci` checks on
 the selected revision before uploading the site, so automatic and manual
@@ -188,7 +195,7 @@ Results, 2026-10-06 (Evan Wies; detail recorded only as reported):
 The first migration changed imports and used ntpicture's compatible low-level
 `Model` (`NewWithConfig` became `NewModelWithConfig`). The completed lifecycle
 migration uses one long-lived `*ntpicture.Picture` per QR component instead.
-The example host now uses `*ntpicture.TerminalSession` for discovery.
+Both example hosts now use `*ntpicture.TerminalSession` for discovery.
 
 1. Replace the NTCharts picture import with
    `picture "nimbleterminal.dev/ntpicture"`. Construct the owned renderer with
@@ -245,12 +252,12 @@ manual acceptance and a recorded result.
 
 ### Pre-release dependency and verification
 
-The initial migration uses `nimbleterminal.dev/ntpicture v0.0.0` with
+Development currently uses `nimbleterminal.dev/ntpicture v0.0.0` with
 `replace nimbleterminal.dev/ntpicture => ../ntpicture`, as requested while the
 sibling API is being finalized. This requires the sibling checkout for both
 native and WASM builds and is not yet a distributable dependency pin. The
-inspected sibling HEAD was `204e10268ffe4ee1785a606423a66df27483beb5`; the
-replacement uses the working tree, including any subsequent local edits.
+Picture migration now uses Submit/HostGeometry from sibling HEAD `1a86099`;
+the replacement uses the working tree, including any subsequent local edits.
 
 The downstream smoke test defaults to normal published dependency resolution.
 For pre-release validation only, explicitly give its temporary main module the
@@ -286,7 +293,7 @@ task ci
 Commit the new go.mod/go.sum and generated notices together. Run the consumer
 test without the override before calling the migration release-ready.
 
-Migration verification: `task test`, `task build-ex-qrcode`, and the full
+Initial compatibility-migration verification: `task test`, `task build-ex-qrcode`, and the full
 `task ci` gate passed with the explicit local consumer override above. This
 includes race tests, vet, module tidy/verification, Windows/native/WASM builds,
 generated notices, and native/WASM vulnerability scans (no vulnerabilities
@@ -300,3 +307,81 @@ updates: the full CI gate passed with the local consumer override, and the
 native demo was force-rebuilt to include sibling changes. Both vulnerability
 scans again reported no vulnerabilities. The compatibility migration needed no
 additional QR source changes.
+
+
+Picture lifecycle migration verification, 2026-10-14: `task test`,
+`task build-ex-qrcode`, and the full `task ci` gate passed against the local
+ntpicture checkout with HEAD `8bf7a07`, using the explicit downstream-consumer
+override. This includes race tests, raw Kitty PNG pixel equality/decoding,
+custom glyph decoding, session-driven geometry, cancelled-job draining,
+allocator failure/recovery, and cleanup after accepted transmission without
+further owner routing. Native/Windows/WASM builds and the browser interaction
+smoke test passed; both vulnerability scans reported no findings. No new
+visual terminal/browser or camera acceptance is claimed for this lifecycle
+change.
+
+
+Atomic submission follow-up, 2026-10-14: adopted `HostGeometry: true` and
+`Submit(Frame{Exact: true, Immutable: true, ...})` from sibling HEAD `1a86099`.
+Removed the terminal-message filter and separate successful-layout clear/geometry
+setters. Failed fits, empty content, and glyph transitions still clear explicitly.
+`task test`, `task build-ex-qrcode`, and full `task ci` passed with the local
+consumer override, including pixel/decoding regressions and browser interaction
+smoke tests. Both vulnerability scans reported no findings. No additional manual
+visual or camera checks were performed.
+
+
+## Interactive generator demo
+
+`task run-make` starts the text-to-QR TUI; `task build-ex-make` builds
+`bin/ntqrcode-make`. The browser site's `demos/make.wasm` runs this same
+application. The original `examples/qrcode` remains a two-component lifecycle
+example and is served as the site's second demo, `demos/qrcode.wasm`.
+
+The generator uses Bubbles textinput for Unicode editing, cursor navigation,
+and paste. Enter generates the exact field value; Ctrl+U clears, Ctrl+G toggles
+graphics, and Ctrl+C closes the component before quitting. Plain letters are
+always input, including the original demo's q/g/n shortcuts. Any edit retires
+the previous code, so an old payload never appears alongside new input. Empty,
+over-limit, or unencodable payloads show an error without a stale code. Field
+storage is bounded to 7,090 runes; encoding enforces the 7,089-byte limit and
+QR capacity. The extra rune ensures a truncated oversized paste cannot become
+a valid, silently shortened payload. This is a single-line text field.
+
+Node 24+ is required for `task ci`. `task check-site` verifies `web/site.js`
+syntax, the required booba runtime exports, every asset and local link that `web/index.html` references, and the
+WASM headers of both demos, then runs `task smoke-wasm`, which exercises the
+built `web/demos/make.wasm` through booba's real input/output bridge, checking
+startup, paste, validation, generation, resize, and clean exit. It does not
+inspect pixels.
+
+Tests cover Unicode payload generation, ordinary typing, paste, invalid-input
+recovery, bounded input, layout in half-block and solid-cell modes, and Kitty
+retirement on editing and quitting. Run `task ci` with the documented local
+ntpicture override until its release. Manual phone scanning and terminal/font
+checks for the new generator remain outstanding.
+
+Browser check, 2026-10-14: inspected the generator in Safari on macOS via the
+local WASM site. Typing a replacement URL and pressing Enter displayed a new
+Kitty QR. Switching to glyph mode removed the image and reported insufficient
+space for that payload/geometry. No phone scan was performed.
+
+Browser startup follow-up, 2026-10-14: upgraded go-booba assets from v0.7.0
+to v0.9.2 to provide the action-bar API imported by the site. The site check
+now links the required runtime exports. Full CI passed with the local ntpicture
+consumer override. Verified in Safari that the generator loads and displays
+the default QR code; no phone scan was performed.
+
+Both demos use `internal/demorun` to wrap their models with booba
+`actions/bubblehelp`, following ntemoji. Bubbles key bindings advertise primary
+controls and an expanded Quit action after capability negotiation. The page
+renders them through its existing action bar; clicks send ordinary key events
+to the same handlers as keyboard input. The WASM smoke test negotiates program
+status and checks the generator advertises its controls.
+
+Action-control verification, 2026-10-14: aligned the WASM Bubble Tea fork with
+ntemoji (`c397c32a5074`) so OSC capability replies reach the wrapper. Full CI
+passed, including the action negotiation smoke check. In Safari, verified both
+demos display their buttons; Clear removed the generator text and QR, Generate
+created the code for newly entered text, and Second code removed the second
+pane. No phone scan was performed.
