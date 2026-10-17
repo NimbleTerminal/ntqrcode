@@ -101,7 +101,7 @@ Japanese and Latin text.
 ```go
 session := ntpicture.NewTerminalSession(ntpicture.TerminalOptions{})
 qr, err := qrcode.New(code, qrcode.Config{
-    Session: session, NextID: hostNextImageID,
+    Session: session, NextID: ntpicture.NextImageID,
 })
 // Handle err and retain both pointers. In the host's Init:
 cmd := session.Init()
@@ -135,8 +135,12 @@ startup, and cleanup before quitting.
   for unknown/unsupported capability or when the user selects glyphs.
 - Broadcast messages to all components, including while showing glyphs or fit
   errors, so cancelled work can drain. Each filters its own presentation work.
-- `NextID` must allocate fresh positive 24-bit IDs shared with every picture
-  in the application, including across replacement and resize. Do not reuse IDs.
+- `NextID func() (int, error)` must allocate fresh positive 24-bit IDs shared
+  with every picture in the application, including across replacement and resize.
+  Pass `ntpicture.NextImageID` directly or a shared custom allocator. Allocation
+  errors propagate through `Err()` and support `errors.Is`; do not reuse IDs.
+  When upgrading an older `func() int` callback, return `(id, nil)` on success
+  and an error when allocation fails.
 - Execute commands from setters, `Update`, and `Close`. A model is a pointer
   with event-loop-owned state; do not copy it or mutate it concurrently.
 - `SetCode(nil)` clears content. Encode replacements before setting them so
@@ -199,9 +203,10 @@ and controls for the two-code example.
 Encoding uses [piglig/go-qr v2.6.0](https://github.com/piglig/go-qr/releases/tag/v2.6.0).
 Rendering uses [ntpicture](https://github.com/NimbleTerminal/ntpicture).
 The [migration guide](./DEVELOP.md#migrating-from-ntchartspicture-to-ntpicture)
-records the dependency and API changes. During pre-release development, builds
-require a sibling `../ntpicture` checkout via a temporary module replacement;
-see the [local verification steps](./DEVELOP.md#pre-release-dependency-and-verification).
+records the dependency and API changes. Until ntpicture has a tagged release,
+we pin its public GitHub commit as a Go pseudo-version. Builds fetch it normally
+and require no sibling checkout; see the
+[dependency verification steps](./DEVELOP.md#pre-release-dependency-and-verification).
 
 Tests independently decode generated images,
 Kitty PNG data, and reconstructed glyph output. They also cover Unicode,

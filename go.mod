@@ -15,7 +15,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/makiuchi-d/gozxing v0.1.1
 	github.com/piglig/go-qr/v2 v2.6.0
-	nimbleterminal.dev/ntpicture v0.0.0
+	nimbleterminal.dev/ntpicture v0.0.0-20261017011200-30268e212552
 )
 
 require (
@@ -38,5 +38,3 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )
-
-replace nimbleterminal.dev/ntpicture => ../ntpicture

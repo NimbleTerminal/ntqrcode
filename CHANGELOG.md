@@ -26,9 +26,16 @@
   use explicit `TerminalSession` instances and close them after QR cleanup.
 * **Behavior change:** `SetTerminal` now trusts the host's confirmed Kitty choice
   instead of requiring process-global detection. Hosts must combine their
-  graphics preference with affirmative capability detection. The `NextID`
-  callback signature remains unchanged; rendering/allocation errors reach `Err`.
-* Use a temporary `../ntpicture` module replacement until its public release.
+  graphics preference with affirmative capability detection; rendering/allocation
+  errors reach `Err`.
+* **Breaking:** change `Config.NextID` to `func() (int, error)` to accept
+  `ntpicture.NextImageID` directly. Preserve allocator errors through `Err()`
+  and retain invalid/repeated-ID validation. Update both examples to use the
+  shared allocator without adapters.
+* Pin public ntpicture commit `30268e212552` as Go pseudo-version
+  `v0.0.0-20261017011200-30268e212552`, replacing the temporary sibling module
+  replacement. Native, WASM, and downstream consumer builds need no sibling
+  checkout or test override.
 * Record the migration procedure and verification in DEVELOP.md.
 
 ## v0.2.0 (2026-10-09)

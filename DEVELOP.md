@@ -219,9 +219,12 @@ Both example hosts now use `*ntpicture.TerminalSession` for discovery.
    `Picture.Update`, even while QR shows glyphs or a fit error. Run every command
    from clearing, Submit, Update, and Close.
    Expose `Picture.Status().Err` through QR's `Err()` alongside layout errors.
-5. Keep `Config.NextID func() int` for source compatibility. Adapt it internally
-   to Picture's `(int, error)` allocator; reject invalid or immediately repeated
-   IDs. The host remains responsible for uniqueness across all components.
+5. Use `Config.NextID func() (int, error)`, matching Picture’s allocator.
+   Pass `ntpicture.NextImageID` directly or share a custom allocator across
+   components. This replaces the earlier `func() int` API: old callbacks must
+   return `(id, nil)` on success and an error on failure. Preserve allocator
+   errors through `Err()` and reject invalid or immediately repeated IDs.
+   The host remains responsible for uniqueness across all components.
    Glyph rendering does not allocate image IDs. Fresh IDs and immediate clearing
    are required here; stable-ID streaming is not appropriate for QR replacement.
 6. Add optional `Config.Session` for transport settings. The host owns session
@@ -243,8 +246,8 @@ Both example hosts now use `*ntpicture.TerminalSession` for discovery.
    errors/recovery, session geometry, and cleanup after accepted output even
    when the component has been removed from message routing.
 9. Tidy dependencies, regenerate notices, run `task test`, native examples, and
-   `task ci`. Preserve WASM-only forks. Use a published dependency pin before
-   release; the temporary local replacement is described below.
+   `task ci`. Preserve WASM-only forks. Pin a publicly fetchable tag or commit;
+   the pre-release pseudo-version is described below.
 
 Automated decoding and builds do not establish phone scanning or visual parity.
 Native terminals, fonts, tmux, browser renderers, and camera scans still require
@@ -252,49 +255,51 @@ manual acceptance and a recorded result.
 
 ### Pre-release dependency and verification
 
-Development currently uses `nimbleterminal.dev/ntpicture v0.0.0` with
-`replace nimbleterminal.dev/ntpicture => ../ntpicture`, as requested while the
-sibling API is being finalized. This requires the sibling checkout for both
-native and WASM builds and is not yet a distributable dependency pin. The
-Picture migration now uses Submit/HostGeometry from sibling HEAD `1a86099`;
-the replacement uses the working tree, including any subsequent local edits.
+Development pins `nimbleterminal.dev/ntpicture` to the public GitHub commit
+`30268e212552e5a1c5f2a6f928b657e28fcdd172`, resolved by Go as
+`v0.0.0-20261017011200-30268e212552`. No tagged ntpicture release exists yet.
+The root module has no local replacement; native and WASM builds resolve the
+same ntpicture revision without requiring a sibling checkout.
 
-The downstream smoke test defaults to normal published dependency resolution.
-For pre-release validation only, explicitly give its temporary main module the
-same sibling path:
+The downstream smoke test creates a separate main module with a local
+replacement for ntqrcode only. It fetches ntpicture through normal Go module
+resolution, checking that consumers can use this dependency pin too.
 
-```sh
-export NTQRCODE_TEST_NTPICTURE="$(cd ../ntpicture && pwd)"
-task notices
-task test
-task --force build-ex-qrcode
-task ci
-```
-
-Force the native example rebuild after sibling changes: Task tracks this
-repository's sources, but not files in the replaced module.
-
-This verifies a consumer with an explicit local dependency; it does not prove
-that a remote consumer can fetch ntpicture. CI without the override will retain
-that release-readiness check and cannot pass until the dependency is published.
-
-Once ntpicture is released, remove the replacement and placeholder requirement,
-then install the actual release (substitute its tag for `vX.Y.Z`):
+To upgrade to a later public commit or release, substitute its full commit hash
+or tag for `REVISION`:
 
 ```sh
-go mod edit -dropreplace=nimbleterminal.dev/ntpicture
-go get nimbleterminal.dev/ntpicture@vX.Y.Z
+go get nimbleterminal.dev/ntpicture@REVISION
 go mod tidy
-unset NTQRCODE_TEST_NTPICTURE
 task notices
 task ci
 ```
 
-Commit the new go.mod/go.sum and generated notices together. Run the consumer
-test without the override before calling the migration release-ready.
+Commit go.mod/go.sum, workspace checksums, and generated notices together.
+Keep the actual-Kitty-PNG and reconstructed-glyph decoding tests when upgrading.
+
+Public dependency verification, 2026-10-16: `task ci` passed against commit
+`e6f89253dcf5` with no dependency replacement or consumer override.
+This includes downstream resolution, exact Kitty PNG and glyph decoding,
+race tests, native/Windows/WASM builds, browser action/interaction smoke checks,
+and both vulnerability scans (no findings). Tests now use current session
+configuration instead of removed legacy global capability/transport setters.
+No additional manual visual or camera checks were performed.
+
+Allocator and dependency update, 2026-10-17: pinned public commit `30268e212552`
+and changed `Config.NextID` to `func() (int, error)`. Both examples pass
+`ntpicture.NextImageID` directly. Full `task ci` passed, including downstream
+compilation with that allocator, allocator error identity/recovery, exact PNG
+and glyph decoding, browser action/interaction smoke checks, and native/WASM
+vulnerability scans (no findings). No manual visual or camera checks were added.
+
+The following historical checks used the temporary `../ntpicture` replacement
+and an explicit `NTQRCODE_TEST_NTPICTURE` consumer override. That override has
+now been removed so the consumer test always exercises normal dependency
+resolution.
 
 Initial compatibility-migration verification: `task test`, `task build-ex-qrcode`, and the full
-`task ci` gate passed with the explicit local consumer override above. This
+`task ci` gate passed with the then-active explicit local consumer override. This
 includes race tests, vet, module tidy/verification, Windows/native/WASM builds,
 generated notices, and native/WASM vulnerability scans (no vulnerabilities
 reported). The decoding tests exercised actual Kitty PNG payloads and
@@ -357,8 +362,8 @@ inspect pixels.
 
 Tests cover Unicode payload generation, ordinary typing, paste, invalid-input
 recovery, bounded input, layout in half-block and solid-cell modes, and Kitty
-retirement on editing and quitting. Run `task ci` with the documented local
-ntpicture override until its release. Manual phone scanning and terminal/font
+retirement on editing and quitting. Run `task ci` against the pinned public
+ntpicture dependency. Manual phone scanning and terminal/font
 checks for the new generator remain outstanding.
 
 Browser check, 2026-10-14: inspected the generator in Safari on macOS via the

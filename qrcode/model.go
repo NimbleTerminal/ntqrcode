@@ -17,7 +17,8 @@ var ErrDoesNotFit = errors.New("QR code doesn't fit")
 
 // Config uses the host's image-ID allocator, shared with its other pictures.
 // NextID must return a fresh, positive 24-bit ID on every call, including
-// across components. Images are retired on replacement, resize, and Close.
+// across components, or an error reported through Model.Err. Images are retired
+// on replacement, resize, and Close. ntpicture.NextImageID can be passed directly.
 //
 // SolidCells makes the glyph fallback fill whole terminal cells with solid
 // background color (about 2 columns × 1 row per module on 1:2 cells, four times
@@ -29,7 +30,7 @@ type Config struct {
 	// The host runs its Init/Update/Close and passes capability and geometry via
 	// SetTerminal. Nil retains the default session transport settings.
 	Session    *picture.TerminalSession
-	NextID     func() int
+	NextID     func() (int, error)
 	SolidCells bool
 }
 
@@ -61,7 +62,10 @@ func New(code *Code, cfg Config) (*Model, error) {
 		HostGeometry:   true,
 		Render:         picture.Config{KittyZ: -1, Fit: picture.FitFill, KittyResolutionFactor: 1},
 		NextID: func() (int, error) {
-			id := cfg.NextID()
+			id, err := cfg.NextID()
+			if err != nil {
+				return 0, err
+			}
 			if id <= 0 || id >= 1<<24 || id == m.lastID {
 				return 0, errors.New("QR image allocator must return fresh positive 24-bit IDs")
 			}

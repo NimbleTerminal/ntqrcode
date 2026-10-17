@@ -29,10 +29,10 @@ func solidCells() bool {
 }
 
 type model struct {
-	terminal                    *picture.TerminalSession
-	codes                       [2]*qrcode.Model
-	width, height, id, selected int
-	preferKitty, solid          bool
+	terminal                *picture.TerminalSession
+	codes                   [2]*qrcode.Model
+	width, height, selected int
+	preferKitty, solid      bool
 }
 
 func newModel() *model {
@@ -45,17 +45,12 @@ func newModelWithSession(session *picture.TerminalSession) *model {
 	return m
 }
 
-func (m *model) nextID() int {
-	m.id++
-	return 100 + m.id // one shared allocator for both QR components
-}
-
 func (m *model) newQR(text string) *qrcode.Model {
 	code, err := qrcode.Encode(text, qrcode.Options{})
 	if err != nil {
 		panic(err)
 	} // fixed example payloads
-	qr, err := qrcode.New(code, qrcode.Config{Session: m.terminal, NextID: m.nextID, SolidCells: m.solid})
+	qr, err := qrcode.New(code, qrcode.Config{Session: m.terminal, NextID: picture.NextImageID, SolidCells: m.solid})
 	if err != nil {
 		panic(err)
 	}

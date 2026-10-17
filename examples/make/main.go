@@ -58,21 +58,11 @@ func newModelWithSession(session *picture.TerminalSession) *model {
 	if err != nil {
 		panic(err)
 	}
-	m.qr, err = qrcode.New(code, qrcode.Config{Session: m.terminal, NextID: nextID, SolidCells: m.solid})
+	m.qr, err = qrcode.New(code, qrcode.Config{Session: m.terminal, NextID: picture.NextImageID, SolidCells: m.solid})
 	if err != nil {
 		panic(err)
 	}
 	return m
-}
-
-// Bridge the shared, non-recycling allocator to the QR component's older API.
-// Zero lets the component report exhaustion through Err without reusing an ID.
-func nextID() int {
-	id, err := picture.NextImageID()
-	if err != nil {
-		return 0
-	}
-	return id
 }
 
 func (m *model) Init() tea.Cmd { return tea.Batch(m.terminal.Init(), m.focus) }

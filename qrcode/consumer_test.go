@@ -28,26 +28,19 @@ import (
     "strings"
     "time"
     "nimbleterminal.dev/ntqrcode/qrcode"
+    picture "nimbleterminal.dev/ntpicture"
 )
 func main() {
     time.AfterFunc(10*time.Second, func() { panic("encoding did not terminate") })
     code, err := qrcode.Encode(strings.Repeat("1", 7089), qrcode.Options{Level: qrcode.Low})
     if err != nil { panic(err) }
     if len(code.Matrix()) != 185 { panic("expected version 40") }
+    if _, err := qrcode.New(code, qrcode.Config{NextID: picture.NextImageID}); err != nil { panic(err) }
     if _, err := qrcode.Encode(strings.Repeat("x", 3000), qrcode.Options{}); !errors.Is(err, qrcode.ErrCapacity) {
         panic("expected capacity error")
     }
 }
 `,
-	}
-	// Explicit opt-in for pre-release sibling development only. Without this
-	// environment variable, keep verifying normal downstream resolution.
-	if local := os.Getenv("NTQRCODE_TEST_NTPICTURE"); local != "" {
-		local, err = filepath.Abs(local)
-		if err != nil {
-			t.Fatal(err)
-		}
-		files["go.mod"] += "\nreplace nimbleterminal.dev/ntpicture => " + strconv.Quote(local) + "\n"
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {

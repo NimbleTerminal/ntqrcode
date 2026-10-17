@@ -53,8 +53,6 @@ func glyphModel(t *testing.T) *model {
 	t.Helper()
 	t.Setenv("TERM_PROGRAM", "")
 	t.Setenv("NTCHARTS_QRCODE_SOLID", "0")
-	picture.ForceKittyCapability(picture.KittyCapabilityUnsupported)
-	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
 	m := newModelWithSession(testSession(picture.KittyCapabilityUnsupported))
 	send(m, tea.WindowSizeMsg{Width: 100, Height: 50})
 	return m
@@ -76,7 +74,7 @@ func TestMakeEditsAndGeneratesExactUnicodePayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected, err := qrcode.New(code, qrcode.Config{NextID: nextID})
+	expected, err := qrcode.New(code, qrcode.Config{NextID: picture.NextImageID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +114,7 @@ func TestLayoutKeepsWholeQRAndFitsViewport(t *testing.T) {
 	for _, solid := range []bool{false, true} {
 		m.qr.Close()
 		code, _ := qrcode.Encode(sample, qrcode.Options{})
-		m.qr, _ = qrcode.New(code, qrcode.Config{NextID: nextID, SolidCells: solid})
+		m.qr, _ = qrcode.New(code, qrcode.Config{NextID: picture.NextImageID, SolidCells: solid})
 		for _, h := range []int{14, 24, 50} {
 			for w := 24; w <= 100; w++ {
 				send(m, tea.WindowSizeMsg{Width: w, Height: h})

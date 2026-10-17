@@ -23,8 +23,11 @@ import (
 	picture "nimbleterminal.dev/ntpicture"
 )
 
-func component(t *testing.T, text string, next func() int) *Model {
+func component(t *testing.T, text string, next func() (int, error)) *Model {
 	t.Helper()
+	// Nil-session Pictures snapshot these defaults without initiating discovery.
+	t.Setenv("NTPICTURE_TMUX_PASSTHROUGH", "0")
+	t.Setenv("NTPICTURE_KITTY", "unsupported")
 	m, err := New(encoded(t, text, Medium), Config{NextID: next})
 	if err != nil {
 		t.Fatal(err)
@@ -33,9 +36,9 @@ func component(t *testing.T, text string, next func() int) *Model {
 	return m
 }
 
-func ids() func() int {
+func ids() func() (int, error) {
 	id := 100
-	return func() int { id += 1000; return id }
+	return func() (int, error) { id += 1000; return id, nil }
 }
 
 type wireFrame struct {
@@ -277,9 +280,6 @@ func TestGlyphNearSquareCellsStayCompactAndDecode(t *testing.T) {
 }
 
 func TestKittyPixelsAreUnscaledAndOpaque(t *testing.T) {
-	picture.ForceKittyCapability(picture.KittyCapabilitySupported)
-	picture.SetTmuxPassthrough(false)
-	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
 	text := "https://nimblemarkets.github.io/gloss/docs/"
 	m := component(t, text, ids())
 	m.SetSize(61, 30)
@@ -351,12 +351,12 @@ func messages(cmd tea.Cmd) []tea.Msg {
 }
 
 func TestHostCapabilityMultipleInstancesAndCleanup(t *testing.T) {
-	// Host decisions work independently of process-global detection.
-	picture.ForceKittyCapability(picture.KittyCapabilityUnsupported)
-	picture.SetTmuxPassthrough(false)
-	t.Cleanup(func() { picture.ForceKittyCapability(picture.KittyCapabilityUnknown) })
+	// Host decisions override the owned Picture session’s initial capability.
 	next := ids()
 	a, b := component(t, "first code", next), component(t, "second code", next)
+	if a.pic.KittySupported() != picture.KittyCapabilityUnsupported {
+		t.Fatal("test must start with unsupported session capability")
+	}
 	run(a.SetSize(80, 40), a)
 	run(b.SetSize(80, 40), b)
 	_, raw := run(a.SetTerminal(false, 8, 16), a, b)
@@ -409,7 +409,6 @@ func TestHostCapabilityMultipleInstancesAndCleanup(t *testing.T) {
 }
 
 func TestRemovalAfterFrameAcceptedStillDeletesLateTransmission(t *testing.T) {
-	picture.SetTmuxPassthrough(false)
 	m := component(t, "accepted but not transmitted", ids())
 	run(m.SetSize(80, 40), m)
 	prepared := messages(m.SetTerminal(true, 8, 16))
@@ -514,7 +513,7 @@ func TestPictureAllocatorErrorsSurfaceAndRecover(t *testing.T) {
 		t.Run(fmt.Sprint(bad), func(t *testing.T) {
 			values := []int{1100, bad, 2100}
 			i := 0
-			m := component(t, "first", func() int { v := values[i]; i++; return v })
+			m := component(t, "first", func() (int, error) { v := values[i]; i++; return v, nil })
 			run(m.SetSize(80, 40), m)
 			run(m.SetTerminal(true, 8, 16), m)
 			frames, raw := run(m.SetCode(encoded(t, "invalid allocation", Medium)), m)
@@ -528,4 +527,32 @@ func TestPictureAllocatorErrorsSurfaceAndRecover(t *testing.T) {
 			decode(t, transmitted(t, frames[0]), "recovered")
 		})
 	}
+}
+
+// Allocation failures must preserve error identity and must not consume an ID.
+func TestAllocatorErrorIdentityAndRecovery(t *testing.T) {
+	sentinel := picture.ErrImageIDExhausted
+	calls := 0
+	m := component(t, "first", func() (int, error) {
+		calls++
+		switch calls {
+		case 1:
+			return 1100, nil
+		case 2:
+			return 2100, sentinel
+		default:
+			return 2100, nil
+		}
+	})
+	run(m.SetSize(80, 40), m)
+	run(m.SetTerminal(true, 8, 16), m)
+	frames, raw := run(m.SetCode(encoded(t, "allocation failed", Medium)), m)
+	if len(frames) != 0 || !errors.Is(m.Err(), sentinel) || m.pic.View() != "" || !strings.Contains(raw, "a=d,d=I,i=1100") {
+		t.Fatalf("allocator failure lost its error or retained content: %v", m.Err())
+	}
+	frames, _ = run(m.SetCode(encoded(t, "recovered", Medium)), m)
+	if m.Err() != nil || len(frames) != 1 || frames[0].ID != 2100 {
+		t.Fatalf("allocator recovery failed: %v", m.Err())
+	}
+	decode(t, transmitted(t, frames[0]), "recovered")
 }
