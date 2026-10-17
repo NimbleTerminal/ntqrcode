@@ -1,6 +1,6 @@
 # `ntqrcode` CHANGELOG
 
-## Unreleased
+## v0.3.0 (2026-10-17)
 
 * Retract `v0.1.0`–`v0.1.1` under the current module path because those tags
   declare the former `github.com/NimbleMarkets/ntcharts-qrcode` module path.
@@ -44,6 +44,9 @@
   replacement and subsequent public commit pin. Native, WASM, and downstream
   consumer builds need no sibling checkout or test override.
 * Record the migration procedure and verification in DEVELOP.md.
+* Known limitation: a phone scan failed in a reported Apple Terminal solid-cell
+  configuration. The supplied screenshot decodes automatically; camera acceptance
+  for that configuration remains unresolved.
 
 ## v0.2.0 (2026-10-09)
 

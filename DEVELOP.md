@@ -170,11 +170,11 @@ HTML containing this metadata instead of redirecting to a marketing site:
 <meta name="go-import" content="nimbleterminal.dev/ntqrcode git https://github.com/NimbleTerminal/ntqrcode">
 ```
 
-The next release should be `v0.3.0`: `Config.NextID` changes from `func() int`
-to `func() (int, error)`, and `SetTerminal(true, ...)` now trusts host capability
+The `v0.3.0` release changes `Config.NextID` from `func() int` to
+`func() (int, error)`, and `SetTerminal(true, ...)` now trusts host capability
 detection. Keep both migration notes visible in the release description. The
 root module retracts `v0.1.0`–`v0.1.1`, whose tags declare the former module path;
-the retractions become discoverable when this new version is published. Keep
+the retractions become discoverable when this version is published. Keep
 those Git tags intact. The examples module is for checkout-local demos and does
 not need its own release tag.
 
@@ -207,6 +207,18 @@ Results, 2026-10-06 (Evan Wies; detail recorded only as reported):
 - Not recorded: the Kitty terminal's identity, fonts, exact cell geometry, and
   the decoded URLs. WezTerm and other glyph terminals were not tried. Add
   those details here if they are re-run.
+
+Results, 2026-10-17 (user report and supplied screenshot):
+
+- Apple Terminal, generator with `NTCHARTS_QRCODE_SOLID=1`: the user reported
+  that the displayed code would not scan with a phone. Font, cell geometry,
+  terminal version, and phone/scanner model were not supplied.
+- Screenshot measurement found modules 28 × 30 pixels (about 7% taller than
+  square), with intact white padding. Independent automated decoding of the
+  screenshot returned exactly `https://nimbleterminal.com/`.
+- This is not a successful phone scan. Camera acceptance for this configuration
+  remains unresolved; reducing the displayed size or increasing camera distance
+  was suggested but no retry result has been reported.
 
 ## Migrating from NTCharts/picture to ntpicture
 

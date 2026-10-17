@@ -59,7 +59,7 @@ with the default `GOTOOLCHAIN=auto` setting.
 As of v0.2.0, the module is `nimbleterminal.dev/ntqrcode`. When upgrading
 from v0.1.x, replace `github.com/NimbleMarkets/ntcharts-qrcode/qrcode` imports
 with `nimbleterminal.dev/ntqrcode/qrcode`. That rename preserved the public API;
-the next release changes `Config.NextID` to `func() (int, error)` as documented
+v0.3.0 changes `Config.NextID` to `func() (int, error)` as documented
 below.
 
 ```sh
