@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Retract `v0.1.0`–`v0.1.1` under the current module path because those tags
+  declare the former `github.com/NimbleMarkets/ntcharts-qrcode` module path.
+  Preserve the tags and their historical source.
+
 * Isolate demo code and the booba asset tool in a separate `examples` module,
   removing go-booba and demo UI dependencies from the library module. Update
   Task/CI, dependency notices, and native/WASM checks to cover both modules.

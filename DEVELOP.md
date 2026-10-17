@@ -161,7 +161,7 @@ GitHub Actions.
 
 ## Releasing
 
-The v0.2.0 module path is `nimbleterminal.dev/ntqrcode`; source and tags live
+The module path is `nimbleterminal.dev/ntqrcode`; source and tags live
 at `https://github.com/NimbleTerminal/ntqrcode`. Before publishing, ensure
 `https://nimbleterminal.dev/ntqrcode?go-get=1` (and package subpaths) serves
 HTML containing this metadata instead of redirecting to a marketing site:
@@ -170,10 +170,18 @@ HTML containing this metadata instead of redirecting to a marketing site:
 <meta name="go-import" content="nimbleterminal.dev/ntqrcode git https://github.com/NimbleTerminal/ntqrcode">
 ```
 
+The next release should be `v0.3.0`: `Config.NextID` changes from `func() int`
+to `func() (int, error)`, and `SetTerminal(true, ...)` now trusts host capability
+detection. Keep both migration notes visible in the release description. The
+root module retracts `v0.1.0`–`v0.1.1`, whose tags declare the former module path;
+the retractions become discoverable when this new version is published. Keep
+those Git tags intact. The examples module is for checkout-local demos and does
+not need its own release tag.
+
 Update the dated changelog and dependency notices, run
 `GOTOOLCHAIN=go1.27.2 task ci`, and commit the release changes. Publish the
 version tag and GitHub release only after module discovery works. Then verify
-`go get nimbleterminal.dev/ntqrcode/qrcode@v0.2.0` from a fresh module without
+`go get nimbleterminal.dev/ntqrcode/qrcode@v0.3.0` from a fresh module without
 local replacements. The downstream consumer test uses a local replacement,
 so it does not verify the public vanity endpoint or published tag.
 

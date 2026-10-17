@@ -4,6 +4,9 @@ go 1.26.8
 
 toolchain go1.27.2
 
+// Published under the former github.com/NimbleMarkets/ntcharts-qrcode module path.
+retract [v0.1.0, v0.1.1]
+
 require (
 	charm.land/bubbletea/v2 v2.1.0
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
