@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -54,5 +55,14 @@ func main() {
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("downstream consumer: %v (context: %v)\n%s", err, ctx.Err(), output)
+	}
+	graph := exec.CommandContext(ctx, "go", "list", "-m", "all")
+	graph.Dir, graph.Env = dir, cmd.Env
+	output, err := graph.CombinedOutput()
+	if err != nil {
+		t.Fatalf("consumer module graph: %v\n%s", err, output)
+	}
+	if strings.Contains(string(output), "github.com/NimbleMarkets/go-booba") {
+		t.Fatal("demo-only go-booba leaked into the consumer module graph")
 	}
 }

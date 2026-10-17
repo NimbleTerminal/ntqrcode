@@ -4,7 +4,10 @@ go 1.26.8
 
 toolchain go1.27.2
 
-use .
+use (
+	.
+	./examples
+)
 
 replace charm.land/bubbletea/v2 => github.com/neomantra/bubbletea/v2 v2.0.0-20261009201241-c397c32a5074
 

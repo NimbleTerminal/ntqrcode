@@ -11,7 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	picture "nimbleterminal.dev/ntpicture"
-	"nimbleterminal.dev/ntqrcode/internal/demorun"
+	"nimbleterminal.dev/ntqrcode/examples/internal/demorun"
 	"nimbleterminal.dev/ntqrcode/qrcode"
 )
 

@@ -62,7 +62,7 @@ with `nimbleterminal.dev/ntqrcode/qrcode`; the public API is unchanged.
 
 ```sh
 go get nimbleterminal.dev/ntqrcode/qrcode
-go run ./examples/make
+go -C examples run ./make
 ```
 
 The interactive generator accepts text or a URL. Press Enter to make a QR,
@@ -70,7 +70,7 @@ Ctrl+U to clear the input, Ctrl+G to switch graphics, and Ctrl+C to quit.
 Editing the text clears the old code until you generate again. The browser
 demo runs this same application, with all QR encoding performed locally.
 
-`go run ./examples/qrcode` runs the original two-component example. It displays
+`go -C examples run ./qrcode` runs the original two-component example. It displays
 two QR codes. Press `n` to change the first URL, `2` to
 hide or restore the second code, `g` to switch rendering modes, and `q` to quit.
 If your terminal is too narrow for both codes, press `2` to make room.
@@ -196,7 +196,9 @@ The browser demo site runs `examples/make` and `examples/qrcode` through
 the sibling ntcanvas and ntpicture sites: `web/index.html`, `site.css`, and
 `site.js` are tracked; the WASM binaries and runtime assets are generated.
 `wasm.work` selects the Bubble Tea and clipboard forks needed for WASM;
-native builds use upstream versions. The demos publish their keyboard controls
+native builds use upstream versions. The demos and booba asset tool live in the
+separate `examples` module, keeping go-booba and UI-only dependencies out of the
+library’s `go.mod`. The demos publish their keyboard controls
 through booba actions, providing clickable Generate, Clear, and Graphics buttons
 and controls for the two-code example.
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* Isolate demo code and the booba asset tool in a separate `examples` module,
+  removing go-booba and demo UI dependencies from the library module. Update
+  Task/CI, dependency notices, and native/WASM checks to cover both modules.
+
 * Advertise both demos’ keyboard controls through booba actions so browser users
   can generate, clear, toggle graphics, and control the two-code example with buttons.
 

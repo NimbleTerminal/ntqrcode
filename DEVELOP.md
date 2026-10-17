@@ -114,11 +114,21 @@ Encoder review (October 2026):
 
 ## Automation and companion conventions
 
+The library and demos are separate Go modules. `examples/go.mod` owns go-booba,
+its `booba-assets` tool, Bubbles textinput, and Lip Gloss, with a local replacement
+for the root ntqrcode module. Run demos with `go -C examples run ./make` or
+`go -C examples run ./qrcode`. Native Task commands set `GOWORK=off` and test,
+vet, tidy, verify, and build both modules explicitly. `wasm.work` includes both
+modules and applies only the browser forks. Notices use both demo dependency
+graphs; vulnerability scans cover the library and demos in native and WASM builds.
+The downstream consumer regression also checks that go-booba stays out of the
+library’s module graph.
+
 GitHub Actions uses `actions/checkout@v7`, `actions/setup-go@v7`, and
 `go-task/setup-task@v2`, following the main NTCharts repo. CI invokes `task ci`
-so local and hosted checks stay in sync. Hosted checks use Go 1.27.2. Both
-`go.mod` and `wasm.work` prefer Go 1.27.2 or newer, so plain `task ci` selects
-a patched toolchain with the default `GOTOOLCHAIN=auto` setting. Explicit
+so local and hosted checks stay in sync. Hosted checks use Go 1.27.2.
+`go.mod`, `examples/go.mod`, and `wasm.work` prefer Go 1.27.2 or newer, so
+plain `task ci` selects a patched toolchain with the default `GOTOOLCHAIN=auto` setting. Explicit
 `GOTOOLCHAIN` overrides take precedence; use `GOTOOLCHAIN=go1.27.2 task ci`
 to match hosted checks exactly. `TestDownstreamConsumer` creates a
 separate main module with `GOWORK=off` and only a local replacement for this
@@ -380,7 +390,7 @@ now links the required runtime exports. Full CI passed with the local ntpicture
 consumer override. Verified in Safari that the generator loads and displays
 the default QR code; no phone scan was performed.
 
-Both demos use `internal/demorun` to wrap their models with booba
+Both demos use `examples/internal/demorun` to wrap their models with booba
 `actions/bubblehelp`, following ntemoji. Bubbles key bindings advertise primary
 controls and an expanded Quit action after capability negotiation. The page
 renders them through its existing action bar; clicks send ordinary key events
@@ -393,3 +403,11 @@ passed, including the action negotiation smoke check. In Safari, verified both
 demos display their buttons; Clear removed the generator text and QR, Generate
 created the code for newly entered text, and Second code removed the second
 pane. No phone scan was performed.
+
+Example-module isolation verification, 2026-10-17: moved demos, shared action
+runner, and the booba asset tool into `examples/go.mod`, following ntcharts-svg.
+The root module no longer lists go-booba, Bubbles, Lip Gloss, clipboard, or pflag.
+`task test`, `task build-ex-qrcode`, and full `task ci` passed across both modules,
+including the downstream module-graph check, native/Windows/WASM builds, browser
+smoke checks, and all three vulnerability scans (no findings). No additional
+manual visual or camera checks were performed.

@@ -37,8 +37,8 @@ func run() error {
 		env  []string
 		pkgs []string
 	}{
-		{".", nil, []string{"./examples/qrcode", "./examples/make"}},
-		{".", []string{"GOOS=js", "GOARCH=wasm", "GOWORK=" + mustWorkspace()}, []string{"./examples/qrcode", "./examples/make"}},
+		{"examples", []string{"GOWORK=off"}, []string{"./qrcode", "./make"}},
+		{"examples", []string{"GOOS=js", "GOARCH=wasm", "GOWORK=" + mustWorkspace()}, []string{"./qrcode", "./make"}},
 	} {
 		// Credit versioned forks separately; local replacements keep their module name.
 		args := append([]string{"list", "-deps", "-f", `{{with .Module}}{{$m := .}}{{with .Replace}}{{if .Version}}{{$m = .}}{{end}}{{end}}{{with $m}}{{.Path}}	{{.Version}}	{{.Dir}}{{end}}{{end}}`}, build.pkgs...)

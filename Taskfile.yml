@@ -2,6 +2,9 @@
 
 version: '3'
 
+env:
+  GOWORK: 'off'
+
 tasks:
   default:
     desc: 'Default task runs the "test" and "build" tasks'
@@ -21,27 +24,34 @@ tasks:
     run: once
     cmds:
       - go mod tidy
+      - go -C examples mod tidy
 
   go-update:
     desc: 'Go update all the dependencies'
     run: once
     cmds:
       - go get -u ./...
+      - go -C examples get -u ./...
+      - go -C examples get -u tool
+      - task: go-tidy
 
   test:
     desc: 'Run all Go tests, including the downstream consumer regression'
     cmds:
       - go test -mod=readonly ./...
+      - go -C examples test -mod=readonly ./...
 
   test-race:
     desc: 'Run all Go tests with the race detector'
     cmds:
       - go test -mod=readonly -race ./...
+      - go -C examples test -mod=readonly -race ./...
 
   vet:
     desc: 'Run go vet'
     cmds:
       - go vet -mod=readonly ./...
+      - go -C examples vet -mod=readonly ./...
 
   build:
     desc: 'Build all the things'
@@ -68,20 +78,23 @@ tasks:
   build-ex-make:
     desc: 'Build the interactive QR generator'
     cmds:
-      - go build -mod=readonly -o bin/ntqrcode-make ./examples/make
+      - go -C examples build -mod=readonly -o ../bin/ntqrcode-make ./make
 
   run-make:
     desc: 'Run the interactive QR generator'
     cmds:
-      - go run ./examples/make
+      - go -C examples run ./make
 
   build-ex-qrcode:
     desc: 'Build the two-code terminal example'
     cmds:
-      - go build -mod=readonly -o bin/ntqrcode ./examples/qrcode
+      - go -C examples build -mod=readonly -o ../bin/ntqrcode ./qrcode
     sources:
       - qrcode/**/*.go
       - examples/qrcode/*.go
+      - examples/internal/**/*.go
+      - examples/go.mod
+      - examples/go.sum
       - go.mod
       - go.sum
     generates:
@@ -100,13 +113,13 @@ tasks:
     cmds:
       - mkdir -p web/demos
       - for: [make, qrcode]
-        cmd: go build -mod=readonly -o web/demos/{{.ITEM}}.wasm ./examples/{{.ITEM}}
+        cmd: go -C examples build -mod=readonly -o ../web/demos/{{.ITEM}}.wasm ./{{.ITEM}}
 
   build-wasm-site:
     desc: 'Build the WASM demo site into web/ and export the pinned booba runtime'
     cmds:
       - task: build-wasm
-      - go tool booba-assets web/
+      - go -C examples tool booba-assets --no-index ../web/
       - cp LICENSE.txt web/LICENSE
       - cp THIRD_PARTY_NOTICES.md web/
 
@@ -161,17 +174,21 @@ tasks:
       # would build the scanner itself for WASM instead of scanning WASM code.
       - GOWORK=off GOOS= GOARCH= GOBIN="$PWD/.task/bin" go install golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}}
       - GOWORK=off .task/bin/govulncheck -test ./...
-      - GOWORK="$PWD/wasm.work" GOOS=js GOARCH=wasm .task/bin/govulncheck ./...
+      - cd examples && GOWORK=off ../.task/bin/govulncheck -test ./...
+      - GOWORK="$PWD/wasm.work" GOOS=js GOARCH=wasm .task/bin/govulncheck ./... ./examples/...
 
   ci:
     desc: 'Check formatting, dependencies, tests, builds, and known vulnerabilities'
     cmds:
       - test -z "$(gofmt -l qrcode examples internal)"
       - go mod tidy -diff
+      - go -C examples mod tidy -diff
       - go mod verify
+      - go -C examples mod verify
       - task: test-race
       - task: vet
       - GOOS=windows GOARCH=amd64 go build -mod=readonly -o /dev/null ./...
+      - GOOS=windows GOARCH=amd64 go -C examples build -mod=readonly -o /dev/null ./...
       - task: build
       - task: build-wasm-site
       - task: check-site
