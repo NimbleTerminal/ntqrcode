@@ -247,17 +247,15 @@ Both example hosts now use `*ntpicture.TerminalSession` for discovery.
    when the component has been removed from message routing.
 9. Tidy dependencies, regenerate notices, run `task test`, native examples, and
    `task ci`. Preserve WASM-only forks. Pin a publicly fetchable tag or commit;
-   the pre-release pseudo-version is described below.
+   the tagged dependency is described below.
 
 Automated decoding and builds do not establish phone scanning or visual parity.
 Native terminals, fonts, tmux, browser renderers, and camera scans still require
 manual acceptance and a recorded result.
 
-### Pre-release dependency and verification
+### Dependency and verification
 
-Development pins `nimbleterminal.dev/ntpicture` to the public GitHub commit
-`30268e212552e5a1c5f2a6f928b657e28fcdd172`, resolved by Go as
-`v0.0.0-20261017011200-30268e212552`. No tagged ntpicture release exists yet.
+Development pins `nimbleterminal.dev/ntpicture v0.1.0`, its first tagged release.
 The root module has no local replacement; native and WASM builds resolve the
 same ntpicture revision without requiring a sibling checkout.
 
@@ -292,6 +290,11 @@ and changed `Config.NextID` to `func() (int, error)`. Both examples pass
 compilation with that allocator, allocator error identity/recovery, exact PNG
 and glyph decoding, browser action/interaction smoke checks, and native/WASM
 vulnerability scans (no findings). No manual visual or camera checks were added.
+
+Tagged release verification, 2026-10-17: upgraded to ntpicture `v0.1.0`.
+Full `task ci` passed, including downstream resolution, exact Kitty PNG and glyph
+decoding, native/Windows/WASM builds, browser smoke checks, and both vulnerability
+scans (no findings). No additional manual visual or camera checks were performed.
 
 The following historical checks used the temporary `../ntpicture` replacement
 and an explicit `NTQRCODE_TEST_NTPICTURE` consumer override. That override has

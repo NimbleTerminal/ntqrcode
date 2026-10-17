@@ -32,10 +32,9 @@
   `ntpicture.NextImageID` directly. Preserve allocator errors through `Err()`
   and retain invalid/repeated-ID validation. Update both examples to use the
   shared allocator without adapters.
-* Pin public ntpicture commit `30268e212552` as Go pseudo-version
-  `v0.0.0-20261017011200-30268e212552`, replacing the temporary sibling module
-  replacement. Native, WASM, and downstream consumer builds need no sibling
-  checkout or test override.
+* Adopt the tagged ntpicture `v0.1.0` release, replacing the temporary sibling
+  replacement and subsequent public commit pin. Native, WASM, and downstream
+  consumer builds need no sibling checkout or test override.
 * Record the migration procedure and verification in DEVELOP.md.
 
 ## v0.2.0 (2026-10-09)
