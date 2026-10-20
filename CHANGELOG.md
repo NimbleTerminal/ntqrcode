@@ -1,6 +1,6 @@
 # `ntqrcode` CHANGELOG
 
-## Unreleased
+## v0.3.1 (2026-10-19)
 
 * Upgrade dependencies: `piglig/go-qr` v2.6.0 to v2.7.0 (faster encoding,
   same segments and masks), `ntpicture` v0.1.0 to v0.1.1, and the demo
