@@ -115,7 +115,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## github.com/NimbleMarkets/go-booba v0.9.2
+## github.com/NimbleMarkets/go-booba v0.10.3
 
 ```
 MIT License
@@ -511,7 +511,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## github.com/piglig/go-qr/v2 v2.6.0
+## github.com/piglig/go-qr/v2 v2.7.0
 
 ```
 MIT License
@@ -685,7 +685,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## nimbleterminal.dev/ntpicture v0.1.0
+## nimbleterminal.dev/ntpicture v0.1.1
 
 ```
 MIT License

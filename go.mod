@@ -12,8 +12,8 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/makiuchi-d/gozxing v0.1.1
-	github.com/piglig/go-qr/v2 v2.6.0
-	nimbleterminal.dev/ntpicture v0.1.0
+	github.com/piglig/go-qr/v2 v2.7.0
+	nimbleterminal.dev/ntpicture v0.1.1
 )
 
 require (

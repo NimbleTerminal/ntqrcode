@@ -1,5 +1,11 @@
 # `ntqrcode` CHANGELOG
 
+## Unreleased
+
+* Upgrade dependencies: `piglig/go-qr` v2.6.0 to v2.7.0 (faster encoding,
+  same segments and masks), `ntpicture` v0.1.0 to v0.1.1, and the demo
+  module's `go-booba` v0.9.2 to v0.10.3. Regenerate dependency notices.
+
 ## v0.3.0 (2026-10-17)
 
 * Retract `v0.1.0`–`v0.1.1` under the current module path because those tags

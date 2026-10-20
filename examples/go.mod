@@ -10,12 +10,12 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.0
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/NimbleMarkets/go-booba v0.9.2
+	github.com/NimbleMarkets/go-booba v0.10.3
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4 // indirect
 	github.com/charmbracelet/x/ansi v0.11.9
-	github.com/piglig/go-qr/v2 v2.6.0 // indirect
-	nimbleterminal.dev/ntpicture v0.1.0
-	nimbleterminal.dev/ntqrcode v0.0.0
+	github.com/piglig/go-qr/v2 v2.7.0 // indirect
+	nimbleterminal.dev/ntpicture v0.1.1
+	nimbleterminal.dev/ntqrcode v0.3.0
 )
 
 require (
