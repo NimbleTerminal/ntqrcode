@@ -181,7 +181,7 @@ not need its own release tag.
 Update the dated changelog and dependency notices, run
 `GOTOOLCHAIN=go1.27.2 task ci`, and commit the release changes. Publish the
 version tag and GitHub release only after module discovery works. Then verify
-`go get nimbleterminal.dev/ntqrcode/qrcode@v0.3.0` from a fresh module without
+`go get nimbleterminal.dev/ntqrcode/qrcode@v0.3.2` from a fresh module without
 local replacements. The downstream consumer test uses a local replacement,
 so it does not verify the public vanity endpoint or published tag.
 
@@ -285,7 +285,7 @@ manual acceptance and a recorded result.
 
 ### Dependency and verification
 
-Development pins `nimbleterminal.dev/ntpicture v0.1.1`.
+Development pins `nimbleterminal.dev/ntpicture v0.1.4`.
 The root module has no local replacement; native and WASM builds resolve the
 same ntpicture revision without requiring a sibling checkout.
 
@@ -305,6 +305,19 @@ task ci
 
 Commit go.mod/go.sum, workspace checksums, and generated notices together.
 Keep the actual-Kitty-PNG and reconstructed-glyph decoding tests when upgrading.
+
+Dependency update verification, 2026-10-30: full `task ci` passed with ntpicture
+`v0.1.4`, Bubble Tea `v2.1.1`, and go-booba `v0.10.7`. This includes exact
+Kitty PNG and reconstructed-glyph decoding, race tests, vet, native/Windows/WASM
+builds, and browser interaction smoke checks. All three vulnerability scans
+using govulncheck `v1.9.0` reported no findings. No additional manual terminal
+or camera checks were performed.
+
+Release preparation for `v0.3.2`, 2026-10-30: the prescribed
+`GOTOOLCHAIN=go1.27.2 task ci` also passed, and both vanity module discovery
+paths returned the expected Go import metadata. The scans reported no affected
+symbols or imported packages; Go 1.27.2 has the uncalled standard-library
+advisory GO-2026-6809, fixed in Go 1.27.3 (used for the update checks above).
 
 Public dependency verification, 2026-10-16: `task ci` passed against commit
 `e6f89253dcf5` with no dependency replacement or consumer override.

@@ -1,5 +1,12 @@
 # `ntqrcode` CHANGELOG
 
+## v0.3.2 (2026-10-30)
+
+* Upgrade Bubble Tea to v2.1.1, ntpicture to v0.1.4, go-booba to v0.10.7,
+  ultraviolet to commit `a45b7c86333f`, and terminfo to v1.3.0 across the
+  library and demo modules. Refresh dependency notices and documentation.
+* Upgrade the CI vulnerability scanner to v1.9.0.
+
 ## v0.3.1 (2026-10-19)
 
 * Upgrade dependencies: `piglig/go-qr` v2.6.0 to v2.7.0 (faster encoding,

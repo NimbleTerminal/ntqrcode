@@ -168,7 +168,7 @@ tasks:
   vuln:
     desc: 'Scan native and WASM dependencies for known vulnerabilities (requires network)'
     vars:
-      GOVULNCHECK_VERSION: v1.8.0
+      GOVULNCHECK_VERSION: v1.9.0
     cmds:
       # Build a host executable first: setting GOOS=js during go run/tool
       # would build the scanner itself for WASM instead of scanning WASM code.

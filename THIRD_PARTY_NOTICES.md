@@ -63,7 +63,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## charm.land/bubbletea/v2 v2.1.0
+## charm.land/bubbletea/v2 v2.1.1
 
 ```
 MIT License
@@ -115,7 +115,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## github.com/NimbleMarkets/go-booba v0.10.3
+## github.com/NimbleMarkets/go-booba v0.10.7
 
 ```
 MIT License
@@ -207,7 +207,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4
+## github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f
 
 ```
 MIT License
@@ -563,7 +563,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## github.com/xo/terminfo v1.2.0
+## github.com/xo/terminfo v1.3.0
 
 ```
 The MIT License (MIT)
@@ -685,7 +685,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
-## nimbleterminal.dev/ntpicture v0.1.1
+## nimbleterminal.dev/ntpicture v0.1.4
 
 ```
 MIT License

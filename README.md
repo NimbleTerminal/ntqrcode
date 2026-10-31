@@ -204,10 +204,10 @@ library’s `go.mod`. The demos publish their keyboard controls
 through booba actions, providing clickable Generate, Clear, and Graphics buttons
 and controls for the two-code example.
 
-Encoding uses [piglig/go-qr v2.6.0](https://github.com/piglig/go-qr/releases/tag/v2.6.0).
+Encoding uses [piglig/go-qr v2.7.0](https://github.com/piglig/go-qr/releases/tag/v2.7.0).
 Rendering uses [ntpicture](https://github.com/NimbleTerminal/ntpicture).
 The [migration guide](./DEVELOP.md#migrating-from-ntchartspicture-to-ntpicture)
-records the dependency and API changes. We use the tagged ntpicture `v0.1.0`
+records the dependency and API changes. We use the tagged ntpicture `v0.1.4`
 release. Builds fetch it normally and require no sibling checkout; see the
 [dependency verification steps](./DEVELOP.md#dependency-and-verification).
 

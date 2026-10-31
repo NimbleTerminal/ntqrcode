@@ -8,14 +8,14 @@ tool github.com/NimbleMarkets/go-booba/cmd/booba-assets
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/NimbleMarkets/go-booba v0.10.3
-	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4 // indirect
+	github.com/NimbleMarkets/go-booba v0.10.7
+	github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f // indirect
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/piglig/go-qr/v2 v2.7.0 // indirect
-	nimbleterminal.dev/ntpicture v0.1.1
-	nimbleterminal.dev/ntqrcode v0.3.0
+	nimbleterminal.dev/ntpicture v0.1.4
+	nimbleterminal.dev/ntqrcode v0.3.1
 )
 
 require (
@@ -31,7 +31,7 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/xo/terminfo v1.2.0 // indirect
+	github.com/xo/terminfo v1.3.0 // indirect
 	golang.org/x/image v0.47.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
