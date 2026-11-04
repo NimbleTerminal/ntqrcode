@@ -10,7 +10,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/NimbleMarkets/go-booba v0.10.7
+	github.com/NimbleMarkets/go-booba v0.11.0
 	github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f // indirect
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/piglig/go-qr/v2 v2.7.0 // indirect
