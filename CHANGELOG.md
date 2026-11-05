@@ -1,5 +1,15 @@
 # `ntqrcode` CHANGELOG
 
+## Unreleased
+
+* Migrate demo imports and the asset tool from `github.com/NimbleMarkets/go-booba`
+  to `nimbleterminal.dev/booba v0.12.1`; update the browser footer link and
+  downstream dependency-isolation regression. Track the generated ntwebterm
+  runtime in site checks, ignore rules, and cleanup.
+* Upgrade ntpicture to v0.1.5 and terminfo to v1.3.1 in both modules, refresh
+  dependency notices, and align the WASM Bubble Tea fork with booba's pin
+  (`536722b0bdb6`). Update the examples' ntqrcode requirement to v0.3.2.
+
 ## v0.3.2 (2026-10-30)
 
 * Upgrade Bubble Tea to v2.1.1, ntpicture to v0.1.4, go-booba to v0.10.7,

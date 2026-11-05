@@ -114,14 +114,14 @@ Encoder review (October 2026):
 
 ## Automation and companion conventions
 
-The library and demos are separate Go modules. `examples/go.mod` owns go-booba,
-its `booba-assets` tool, Bubbles textinput, and Lip Gloss, with a local replacement
+The library and demos are separate Go modules. `examples/go.mod` owns
+`nimbleterminal.dev/booba`, its `booba-assets` tool, Bubbles textinput, and Lip Gloss, with a local replacement
 for the root ntqrcode module. Run demos with `go -C examples run ./make` or
 `go -C examples run ./qrcode`. Native Task commands set `GOWORK=off` and test,
 vet, tidy, verify, and build both modules explicitly. `wasm.work` includes both
 modules and applies only the browser forks. Notices use both demo dependency
 graphs; vulnerability scans cover the library and demos in native and WASM builds.
-The downstream consumer regression also checks that go-booba stays out of the
+The downstream consumer regression also checks that booba stays out of the
 library’s module graph.
 
 GitHub Actions uses `actions/checkout@v7`, `actions/setup-go@v7`, and
@@ -135,7 +135,7 @@ separate main module with `GOWORK=off` and only a local replacement for this
 library; it verifies dense encoding and capacity rejection without inheriting
 any of the library's dependency replacements.
 
-`task ci` includes `task vuln`, which installs `govulncheck` v1.8.0 into the
+`task ci` includes `task vuln`, which installs `govulncheck` v1.9.0 into the
 ignored `.task/bin/` directory. The scanner runs as a host executable, first
 against native packages and tests with `GOWORK=off`, then against js/wasm
 packages using `wasm.work` so the WASM forks are covered. The scanner version
@@ -285,7 +285,7 @@ manual acceptance and a recorded result.
 
 ### Dependency and verification
 
-Development pins `nimbleterminal.dev/ntpicture v0.1.4`.
+Development pins `nimbleterminal.dev/ntpicture v0.1.5`.
 The root module has no local replacement; native and WASM builds resolve the
 same ntpicture revision without requiring a sibling checkout.
 
@@ -305,6 +305,14 @@ task ci
 
 Commit go.mod/go.sum, workspace checksums, and generated notices together.
 Keep the actual-Kitty-PNG and reconstructed-glyph decoding tests when upgrading.
+
+Dependency migration verification, 2026-11-04: full `task ci` passed on Go
+1.27.3 with booba `v0.12.1` under `nimbleterminal.dev/booba`, ntpicture
+`v0.1.5`, terminfo `v1.3.1`, and the WASM Bubble Tea fork at `536722b0bdb6`.
+This includes actual Kitty PNG and reconstructed-glyph decoding, race tests,
+vet, native/Windows/WASM builds, ntwebterm asset checks, and browser interaction
+smoke checks. All three vulnerability scans reported no findings. No manual
+terminal, browser visual, or camera checks were performed.
 
 Dependency update verification, 2026-10-30: full `task ci` passed with ntpicture
 `v0.1.4`, Bubble Tea `v2.1.1`, and go-booba `v0.10.7`. This includes exact

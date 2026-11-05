@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		t.Fatalf("consumer module graph: %v\n%s", err, output)
 	}
-	if strings.Contains(string(output), "github.com/NimbleMarkets/go-booba") {
-		t.Fatal("demo-only go-booba leaked into the consumer module graph")
+	if strings.Contains(string(output), "nimbleterminal.dev/booba") {
+		t.Fatal("demo-only booba leaked into the consumer module graph")
 	}
 }

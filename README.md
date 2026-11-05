@@ -194,12 +194,12 @@ task clean              # remove generated binaries and demo assets
 ```
 
 The browser demo site runs `examples/make` and `examples/qrcode` through
-[go-booba](https://github.com/NimbleMarkets/go-booba). Its landing page follows
+[booba](https://github.com/NimbleTerminal/booba). Its landing page follows
 the sibling ntcanvas and ntpicture sites: `web/index.html`, `site.css`, and
-`site.js` are tracked; the WASM binaries and runtime assets are generated.
+`site.js` are tracked; the WASM binaries and booba/ntwebterm runtime assets are generated.
 `wasm.work` selects the Bubble Tea and clipboard forks needed for WASM;
 native builds use upstream versions. The demos and booba asset tool live in the
-separate `examples` module, keeping go-booba and UI-only dependencies out of the
+separate `examples` module, keeping booba and UI-only dependencies out of the
 library’s `go.mod`. The demos publish their keyboard controls
 through booba actions, providing clickable Generate, Clear, and Graphics buttons
 and controls for the two-code example.
