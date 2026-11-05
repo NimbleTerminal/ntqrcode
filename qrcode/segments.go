@@ -1,6 +1,7 @@
 package qrcode
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"unicode/utf8"
@@ -12,7 +13,7 @@ import (
 // Shift-JIS decoders (including ZXing). Keep them out of Kanji segments.
 const ambiguousKanji = "\\¢£¬‖−〜"
 
-func encodeSymbol(content string, level encoder.ECC, minV, maxV int) (*encoder.Code, error) {
+func encodeSymbol(ctx context.Context, content string, level encoder.ECC, minV, maxV int) (*encoder.Code, error) {
 	var prefix []encoder.Segment
 	for _, r := range content {
 		if r >= utf8.RuneSelf {
@@ -37,7 +38,7 @@ func encodeSymbol(content string, level encoder.ECC, minV, maxV int) (*encoder.C
 		segment := encoder.BytesSegment([]byte(content))
 		var err error
 		byteSegments = append(prefix, segment)
-		fallback, err = encoder.EncodeSegments(byteSegments, encoder.WithECC(level), encoder.WithVersionRange(minV, maxV))
+		fallback, err = encodeSegments(ctx, byteSegments, level, minV, maxV)
 		if err != nil && !errors.Is(err, encoder.ErrDataTooLong) {
 			return nil, err
 		}
@@ -51,15 +52,18 @@ func encodeSymbol(content string, level encoder.ECC, minV, maxV int) (*encoder.C
 	// perform the bounded capacity search including our ECI header, without
 	// repeating segmentation at every version.
 	for _, boundary := range [...]int{9, 26, 40} {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		end := min(boundary, maxV)
 		if end < minV {
 			continue
 		}
-		segments, err := safeSegments(content, end)
+		segments, err := safeSegments(ctx, content, end)
 		if err == nil {
 			segments = append(prefix, segments...)
 			var qr *encoder.Code
-			qr, err = encoder.EncodeSegments(segments, encoder.WithECC(level), encoder.WithVersionRange(minV, end))
+			qr, err = encodeSegments(ctx, segments, level, minV, end)
 			if err == nil {
 				if fallback != nil && fallback.Size() == qr.Size() {
 					if fallback.ECC() > qr.ECC() {
@@ -83,15 +87,18 @@ func encodeSymbol(content string, level encoder.ECC, minV, maxV int) (*encoder.C
 // Optimize safe runs and encode consecutive ambiguous characters as UTF-8.
 // Splitting only at those boundaries preserves compression of long numeric,
 // alphanumeric, and Japanese runs surrounding an ambiguous character.
-func safeSegments(content string, version int) ([]encoder.Segment, error) {
+func safeSegments(ctx context.Context, content string, version int) ([]encoder.Segment, error) {
 	var segments []encoder.Segment
 	for len(content) > 0 {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		end := strings.IndexAny(content, ambiguousKanji)
 		if end < 0 {
 			end = len(content)
 		}
 		if end > 0 {
-			run, err := optimalSegments(content[:end], version)
+			run, err := optimalSegments(ctx, content[:end], version)
 			if err != nil {
 				return nil, err
 			}
@@ -109,4 +116,17 @@ func safeSegments(content string, version int) ([]encoder.Segment, error) {
 		content = content[end:]
 	}
 	return segments, nil
+}
+
+// Upstream has no context-aware segment encoder. Check on both sides rather
+// than returning early and leaving its CPU/memory work running in a goroutine.
+func encodeSegments(ctx context.Context, segments []encoder.Segment, level encoder.ECC, minV, maxV int) (*encoder.Code, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	code, err := encoder.EncodeSegments(segments, encoder.WithECC(level), encoder.WithVersionRange(minV, maxV))
+	if canceled := ctx.Err(); canceled != nil {
+		return nil, canceled
+	}
+	return code, err
 }

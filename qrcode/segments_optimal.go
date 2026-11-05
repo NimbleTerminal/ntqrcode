@@ -4,6 +4,7 @@
 package qrcode
 
 import (
+	"context"
 	"strings"
 	"unicode/utf8"
 
@@ -13,12 +14,20 @@ import (
 // optimalSegments optimizes a run with ambiguous Kanji characters removed.
 // Upstream v2 keeps its optimizer private; explicit segments let us preserve
 // interoperable byte encoding at those boundaries.
-func optimalSegments(text string, version int) ([]encoder.Segment, error) {
+func optimalSegments(ctx context.Context, text string, version int) ([]encoder.Segment, error) {
 	runes := []rune(text)
-	modes := charModes(runes, version)
+	modes, err := charModes(ctx, runes, version)
+	if err != nil {
+		return nil, err
+	}
 	var segments []encoder.Segment
 	start, pos := 0, 0
 	for i, r := range runes {
+		if i%64 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
 		pos += utf8.RuneLen(r)
 		if i+1 < len(runes) && modes[i+1] == modes[i] {
 			continue
@@ -50,7 +59,7 @@ var optimalModes = [4]encoder.Mode{encoder.ModeByte, encoder.ModeAlphanumeric, e
 // charModes returns the mode of every character in the cheapest encoding of
 // runes at version ver. It is a dynamic program over (character, mode) pairs;
 // costs are in sixths of a bit so fractional mode costs stay integral.
-func charModes(runes []rune, ver int) []encoder.Mode {
+func charModes(ctx context.Context, runes []rune, ver int) ([]encoder.Mode, error) {
 	const n = len(optimalModes)
 	versionRange := 0
 	if ver >= 27 {
@@ -69,6 +78,11 @@ func charModes(runes []rune, ver int) []encoder.Mode {
 	from := make([]encoder.Mode, len(runes)*n)
 	prev := head
 	for i, r := range runes {
+		if i%64 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
 		var cur [n]int
 		step := from[i*n : i*n+n]
 
@@ -114,7 +128,7 @@ func charModes(runes []rune, ver int) []encoder.Mode {
 		mode = from[i*n+modeColumn(mode)]
 		modes[i] = mode
 	}
-	return modes
+	return modes, nil
 }
 
 // modeColumn returns the index of m in optimalModes.

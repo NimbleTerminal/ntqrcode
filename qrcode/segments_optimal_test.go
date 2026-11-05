@@ -1,6 +1,7 @@
 package qrcode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -23,7 +24,7 @@ func TestSegmentationMatchesUpstreamV2(t *testing.T) {
 		for _, level := range []encoder.ECC{encoder.ECCLow, encoder.ECCMedium, encoder.ECCQuartile, encoder.ECCHigh} {
 			for _, bounds := range [][2]int{{1, 9}, {10, 26}, {27, 40}, {1, 40}} {
 				t.Run(fmt.Sprintf("payload%d/%s/%d-%d", i, level, bounds[0], bounds[1]), func(t *testing.T) {
-					got, err := encodeSymbol(payload, level, bounds[0], bounds[1])
+					got, err := encodeSymbol(context.Background(), payload, level, bounds[0], bounds[1])
 					want, wantErr := encoder.Encode(payload, encoder.WithECC(level), encoder.WithVersionRange(bounds[0], bounds[1]), encoder.WithUTF8ECI())
 					if wantErr != nil {
 						if !errors.Is(wantErr, encoder.ErrDataTooLong) || !errors.Is(err, encoder.ErrDataTooLong) {

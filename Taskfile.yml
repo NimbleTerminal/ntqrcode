@@ -47,6 +47,14 @@ tasks:
       - go test -mod=readonly -race ./...
       - go -C examples test -mod=readonly -race ./...
 
+  fuzz:
+    desc: 'Fuzz encoding and terminal bounds (override FUZZTIME for longer campaigns)'
+    vars:
+      FUZZTIME: '{{default "10s" .FUZZTIME}}'
+    cmds:
+      - go test -mod=readonly ./qrcode -run='^$' -fuzz='^FuzzEncode$' -fuzztime={{.FUZZTIME}} -parallel=2
+      - go test -mod=readonly ./qrcode -run='^$' -fuzz='^FuzzGeometry$' -fuzztime={{.FUZZTIME}} -parallel=2
+
   vet:
     desc: 'Run go vet'
     cmds:
@@ -186,6 +194,7 @@ tasks:
       - go mod verify
       - go -C examples mod verify
       - task: test-race
+      - task: fuzz
       - task: vet
       - GOOS=windows GOARCH=amd64 go build -mod=readonly -o /dev/null ./...
       - GOOS=windows GOARCH=amd64 go -C examples build -mod=readonly -o /dev/null ./...

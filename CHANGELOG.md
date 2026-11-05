@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+* Add `EncodeContext` for cooperative cancellation during segmentation and
+  between bounded upstream encoding stages. Preserve `Encode` as the synchronous
+  convenience API; context errors remain distinct from capacity errors.
+* Add encoding and geometry fuzz targets, bounded CI fuzz campaigns, cancellation
+  regressions, and SECURITY.md describing validation, limits, the in-process
+  perimeter, and application responsibilities. Production decoding remains out
+  of scope; no sandbox or hard deadline is claimed.
+
 * Migrate demo imports and the asset tool from `github.com/NimbleMarkets/go-booba`
   to `nimbleterminal.dev/booba v0.12.1`; update the browser footer link and
   downstream dependency-isolation regression. Track the generated ntwebterm

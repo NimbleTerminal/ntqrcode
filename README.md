@@ -89,6 +89,13 @@ img, err := code.Image(8) // opaque image.Image, exactly 8 pixels per module
 // Handle err, then png.Encode(writer, img) to export it.
 ```
 
+Use `qrcode.EncodeContext(ctx, text, opts)` for cooperative cancellation.
+It returns the context error and no code when canceled. An in-flight upstream
+encoding stage must finish before cancellation is observed; this is not a hard
+execution deadline. `Encode` remains synchronous without a deadline.
+See [SECURITY.md](./SECURITY.md) for input and allocation bounds, the security
+perimeter, and host responsibilities. There is no production decoder.
+
 `Options{}` uses medium error correction, with an automatic boost when a
 stronger level fits in the same size. You can also request `Low`, `Quartile`,
 or `High`.
@@ -186,6 +193,7 @@ recorded results and remaining checks.
 ```sh
 task ci                 # full checks, builds, and vulnerability scans
 task test               # tests without a vulnerability-database query
+task fuzz FUZZTIME=1m    # fuzz encoding, options, and terminal geometry
 task build-ex-qrcode    # build the original two-code example
 task build-ex-make      # build bin/ntqrcode-make
 task run-make           # run the interactive generator
@@ -207,7 +215,7 @@ and controls for the two-code example.
 Encoding uses [piglig/go-qr v2.7.0](https://github.com/piglig/go-qr/releases/tag/v2.7.0).
 Rendering uses [ntpicture](https://github.com/NimbleTerminal/ntpicture).
 The [migration guide](./DEVELOP.md#migrating-from-ntchartspicture-to-ntpicture)
-records the dependency and API changes. We use the tagged ntpicture `v0.1.4`
+records the dependency and API changes. We use the tagged ntpicture `v0.1.5`
 release. Builds fetch it normally and require no sibling checkout; see the
 [dependency verification steps](./DEVELOP.md#dependency-and-verification).
 
@@ -217,7 +225,7 @@ capacity limits, resizing, and cleanup. Camera and terminal checks are recorded
 separately in [DEVELOP.md](./DEVELOP.md).
 
 Run `task ci` before submitting changes. It checks formatting, dependencies,
-race tests, vet, Windows/native/WASM builds, and known vulnerabilities. The
+race tests, bounded fuzz campaigns, vet, Windows/native/WASM builds, and known vulnerabilities. The
 vulnerability scans require network access. The Pages workflow runs these
 checks before deploying; configure GitHub Pages to use GitHub Actions to
 enable it. See [DEVELOP.md](./DEVELOP.md) for implementation notes and the

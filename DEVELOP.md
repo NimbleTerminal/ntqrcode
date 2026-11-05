@@ -114,6 +114,21 @@ Encoder review (October 2026):
 
 ## Automation and companion conventions
 
+Security boundaries and resource limits are described in [SECURITY.md](./SECURITY.md).
+`EncodeContext` checks cancellation during segmentation, before and after each
+upstream `EncodeSegments` call, and while copying the final matrix. Upstream
+encoding is bounded but cannot be interrupted in-flight. Preserve the context
+error without wrapping it in `ErrCapacity`; do not implement cancellation by
+abandoning a goroutine. `Encode` uses a background context for compatibility.
+
+`task fuzz` runs two bounded, two-worker campaigns (10 seconds each by default)
+as part of `task ci`; use `task fuzz FUZZTIME=1m` for longer local runs. Encoding
+fuzzing checks arbitrary payloads/options, quiet zones, image sizes, and independent
+decoding. Geometry fuzzing executes the actual component commands with extreme
+sizes in Kitty and glyph modes. Seeds run in ordinary tests too; retain minimized
+failures as regression corpus entries. Fuzzing is additional evidence, not a
+hard resource budget or a proof of safety.
+
 The library and demos are separate Go modules. `examples/go.mod` owns
 `nimbleterminal.dev/booba`, its `booba-assets` tool, Bubbles textinput, and Lip Gloss, with a local replacement
 for the root ntqrcode module. Run demos with `go -C examples run ./make` or
@@ -305,6 +320,15 @@ task ci
 
 Commit go.mod/go.sum, workspace checksums, and generated notices together.
 Keep the actual-Kitty-PNG and reconstructed-glyph decoding tests when upgrading.
+
+Security hardening verification, 2026-11-04: full `task ci` passed on Go
+1.27.3 with cooperative encoding cancellation and both fuzz targets enabled.
+Separate 15-second, two-worker encoding and geometry fuzz campaigns also passed.
+CI included cancellation regressions, race tests, exact Kitty/glyph decoding,
+native/Windows/WASM builds, browser interaction smoke checks, and all three
+vulnerability scans (no findings). No new manual visual or camera checks were
+performed. Cancellation remains cooperative across bounded upstream calls, as
+specified in SECURITY.md.
 
 Dependency migration verification, 2026-11-04: full `task ci` passed on Go
 1.27.3 with booba `v0.12.1` under `nimbleterminal.dev/booba`, ntpicture

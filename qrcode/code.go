@@ -4,6 +4,7 @@
 package qrcode
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -53,7 +54,21 @@ type Options struct {
 // quiet zone on every side. True means a black module; false means white.
 type Code struct{ modules [][]bool }
 
+// Encode encodes content synchronously using the same bounds as EncodeContext.
 func Encode(content string, opts Options) (*Code, error) {
+	return EncodeContext(context.Background(), content, opts)
+}
+
+// EncodeContext encodes content with cooperative cancellation. A canceled context
+// returns its error and no Code. Cancellation is checked during segmentation,
+// between encoding stages, and while copying the matrix. An in-flight upstream
+// EncodeSegments call must finish before cancellation is observed; it is bounded
+// by MaxPayloadBytes and QR version 40. This is not a hard execution deadline.
+// No background goroutine is started. The context must be non-nil.
+func EncodeContext(ctx context.Context, content string, opts Options) (*Code, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	levels := [...]encoder.ECC{encoder.ECCMedium, encoder.ECCLow, encoder.ECCQuartile, encoder.ECCHigh}
 	if int(opts.Level) >= len(levels) {
 		return nil, fmt.Errorf("invalid QR correction level %d", opts.Level)
@@ -78,14 +93,20 @@ func Encode(content string, opts Options) (*Code, error) {
 		return nil, errors.New("QR content must be nonempty UTF-8")
 	}
 	ecl := levels[opts.Level]
-	qr, err := encodeSymbol(content, ecl, minV, maxV)
+	qr, err := encodeSymbol(ctx, content, ecl, minV, maxV)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, fmt.Errorf("%w: %v", ErrCapacity, err)
 	}
 	// go-qr's matrix excludes the quiet zone; add it so Code owns the contract.
 	n := qr.Size()
 	modules := make([][]bool, n+2*QuietZone)
 	for y := range modules {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		row := make([]bool, n+2*QuietZone)
 		if y >= QuietZone && y < n+QuietZone {
 			for x := range n {
@@ -93,6 +114,9 @@ func Encode(content string, opts Options) (*Code, error) {
 			}
 		}
 		modules[y] = row
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	return &Code{modules: modules}, nil
 }
