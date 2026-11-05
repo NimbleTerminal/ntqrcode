@@ -196,7 +196,7 @@ not need its own release tag.
 Update the dated changelog and dependency notices, run
 `GOTOOLCHAIN=go1.27.2 task ci`, and commit the release changes. Publish the
 version tag and GitHub release only after module discovery works. Then verify
-`go get nimbleterminal.dev/ntqrcode/qrcode@v0.3.2` from a fresh module without
+`go get nimbleterminal.dev/ntqrcode/qrcode@v0.4.0` from a fresh module without
 local replacements. The downstream consumer test uses a local replacement,
 so it does not verify the public vanity endpoint or published tag.
 
@@ -320,6 +320,15 @@ task ci
 
 Commit go.mod/go.sum, workspace checksums, and generated notices together.
 Keep the actual-Kitty-PNG and reconstructed-glyph decoding tests when upgrading.
+
+Release preparation for `v0.4.0`, 2026-11-04: the prescribed
+`GOTOOLCHAIN=go1.27.2 task ci` passed, including both fuzz campaigns. Vanity
+module discovery returned the expected import metadata for the module and
+`/qrcode` package. All three scans reported no affected symbols or imported
+packages, with one uncalled module-level advisory under Go 1.27.2; the earlier
+Go 1.27.3 checks reported no findings. No new manual visual or camera checks
+were performed. Publish the tag only after CI and Pages are green for the
+release commit, then verify the published version from a fresh consumer module.
 
 Security hardening verification, 2026-11-04: full `task ci` passed on Go
 1.27.3 with cooperative encoding cancellation and both fuzz targets enabled.

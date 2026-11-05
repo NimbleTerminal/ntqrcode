@@ -1,6 +1,6 @@
 # `ntqrcode` CHANGELOG
 
-## Unreleased
+## v0.4.0 (2026-11-04)
 
 * Add `EncodeContext` for cooperative cancellation during segmentation and
   between bounded upstream encoding stages. Preserve `Encode` as the synchronous
