@@ -11,7 +11,7 @@ require (
 	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f // indirect
-	github.com/charmbracelet/x/ansi v0.11.9
+	github.com/charmbracelet/x/ansi v0.11.10
 	github.com/piglig/go-qr/v2 v2.7.0 // indirect
 	nimbleterminal.dev/booba v0.12.1
 	nimbleterminal.dev/ntpicture v0.1.5
